@@ -1,5 +1,169 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>feeday</title><link>https://feeday.cn/feeday</link><description>BB Work No Money</description><copyright>feeday</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://feeday.cn/feeday</link></image><lastBuildDate>Sat, 22 Nov 2025 19:15:10 +0000</lastBuildDate><managingEditor>feeday</managingEditor><ttl>60</ttl><webMaster>feeday</webMaster><item><title>配置文件</title><link>https://feeday.cn/feeday/post/pei-zhi-wen-jian.html</link><description>```
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>feeday</title><link>https://feeday.cn/feeday</link><description>BB Work No Money</description><copyright>feeday</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://feeday.cn/feeday</link></image><lastBuildDate>Mon, 24 Nov 2025 13:49:16 +0000</lastBuildDate><managingEditor>feeday</managingEditor><ttl>60</ttl><webMaster>feeday</webMaster><item><title>删除重复图像</title><link>https://feeday.cn/feeday/post/shan-chu-zhong-fu-tu-xiang.html</link><description>删除重复图像-GPU
+```
+import os
+import sys
+import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# ========== 自动安装依赖（阿里源） ==========
+def auto_install(pkg):
+    try:
+        __import__(pkg)
+    except ImportError:
+        print(f'📦 未安装 {pkg}，正在安装（阿里源）...')
+        subprocess.check_call([
+            sys.executable, '-m', 'pip', 'install', pkg,
+            '-i', 'https://mirrors.aliyun.com/pypi/simple'
+        ])
+
+auto_install('PIL')              # pillow
+auto_install('imagehash')
+auto_install('opencv-python')
+auto_install('numpy')
+auto_install('scikit-image')
+
+
+import cv2
+import numpy as np
+from PIL import Image
+import imagehash
+from skimage.metrics import structural_similarity as ssim
+
+
+# ============ 配置 ============
+FOLDER = r'C:\Users\Puck\Desktop\xz\cp'
+EXTS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
+
+PHASH_THRESHOLD = 5     # phash 最大差距
+DHASH_THRESHOLD = 5     # dhash 最大差距
+SSIM_THRESHOLD = 0.95   # fast-ssim 最终确认阈值
+
+THREADS = 8
+# =============================
+
+
+def load_image(path):
+    '''读图（OpenCV 格式 + Original Size）'''
+    img = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_COLOR)
+    return img
+
+
+def fast_ssim(img1, img2):
+    '''缩小到 64×64，再计算 SSIM（高速 + 不误判）'''
+    gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+
+    h = min(gray1.shape[0], gray2.shape[0])
+    w = min(gray1.shape[1], gray2.shape[1])
+
+    g1 = cv2.resize(gray1, (64, 64))
+    g2 = cv2.resize(gray2, (64, 64))
+
+    value, _ = ssim(g1, g2, full=True)
+    return value
+
+
+def calc_hashes(path):
+    '''计算 pHash + dHash'''
+    try:
+        img = Image.open(path).convert('RGB')
+        ph = imagehash.phash(img)
+        dh = imagehash.dhash(img)
+        return (path, ph, dh)
+    except:
+        return (path, None, None)
+
+
+def main():
+    print('📌 扫描文件中...')
+
+    file_list = []
+    for root, _, files in os.walk(FOLDER):
+        for f in files:
+            if os.path.splitext(f)[1].lower() in EXTS:
+                file_list.append(os.path.join(root, f))
+
+    print(f'📸 找到 {len(file_list)} 张图片，开始多线程 hash...')
+
+    # ========== 多线程 hash ==========
+    hashes = []
+    with ThreadPoolExecutor(max_workers=THREADS) as exe:
+        futures = [exe.submit(calc_hashes, p) for p in file_list]
+        for f in as_completed(futures):
+            hashes.append(f.result())
+
+    # ========== 加载 OpenCV 图像 &amp; 分辨率 ==========
+    print('📷 加载图像用于 SSIM...')
+
+    imgs = {}
+    resolutions = {}
+
+    for path, _, _ in hashes:
+        img = load_image(path)
+        if img is None:
+            continue
+        imgs[path] = img
+        h, w = img.shape[:2]
+        resolutions[path] = w * h
+
+    print('🚀 开始严格去重（三重判定，不误删）...')
+
+    delete = set()
+    kept = []
+
+    n = len(hashes)
+
+    for i in range(n):
+        p1, ph1, dh1 = hashes[i]
+        if p1 in delete:
+            continue
+
+        kept.append(p1)
+
+        for j in range(i + 1, n):
+            p2, ph2, dh2 = hashes[j]
+            if p2 in delete:
+                continue
+
+            # --- 1) pHash 粗筛 ---
+            if ph1 - ph2 &gt; PHASH_THRESHOLD:
+                continue
+
+            # --- 2) dHash 粗筛 ---
+            if dh1 - dh2 &gt; DHASH_THRESHOLD:
+                continue
+
+            # --- 3) fast SSIM 最终确认 ---
+            s = fast_ssim(imgs[p1], imgs[p2])
+
+            if s &gt;= SSIM_THRESHOLD:
+                # 保留分辨率最高
+                if resolutions[p2] &gt; resolutions[p1]:
+                    print(f'🔄 替换保留 → {p2}（更高清）')
+                    delete.add(p1)
+                    kept[-1] = p2
+                    p1 = p2
+                else:
+                    print(f'🗑 删除：{p2}（SSIM={s:.3f}）')
+                    delete.add(p2)
+
+    print(f'\n🗑 删除 {len(delete)} 张重复图片...')
+
+    # 最终删除
+    for p in delete:
+        try:
+            os.remove(p)
+        except:
+            pass
+
+    print('✨ 完成！')
+
+
+if __name__ == '__main__':
+    main()
+
+```。</description><guid isPermaLink="true">https://feeday.cn/feeday/post/shan-chu-zhong-fu-tu-xiang.html</guid><pubDate>Mon, 24 Nov 2025 13:48:48 +0000</pubDate></item><item><title>配置文件</title><link>https://feeday.cn/feeday/post/pei-zhi-wen-jian.html</link><description>```
 {
   'title': 'feeday',
   'subTitle': 'BB Work No Money',
