@@ -151,7 +151,7 @@ IndexTTS2：情感表达和持续时间控制的自动回归零样本文本转�
 <meta property="og:url" content="https://feeday.cn//post/IndexTTS-2.html">
 <meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
 <title>IndexTTS-2</title>
-
+<link href="//unpkg.com/@wooorm/starry-night@2.1.1/style/both.css" rel="stylesheet" />
 
 
 </head>
@@ -647,46 +647,41 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 <hr>
 <h2>部署方法</h2>
 <h4>1. 安装依赖</h4>
-<pre lang="bash" class="notranslate"><code class="notranslate"># 安装 uv (推荐的依赖管理工具)
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c"><span class="pl-c">#</span> 安装 uv (推荐的依赖管理工具)</span>
 pip install -U uv
 
-# 克隆项目
-git clone https://github.com/index-tts/index-tts.git &amp;&amp; cd index-tts
+<span class="pl-c"><span class="pl-c">#</span> 克隆项目</span>
+git clone https://github.com/index-tts/index-tts.git <span class="pl-k">&amp;&amp;</span> <span class="pl-c1">cd</span> index-tts
 git lfs install
 git lfs pull
 
-# 同步依赖
+<span class="pl-c"><span class="pl-c">#</span> 同步依赖</span>
 uv sync --all-extras
-# 如果网络慢，可用国内镜像：
-uv sync --all-extras --default-index "https://mirrors.aliyun.com/pypi/simple"
-</code></pre>
+<span class="pl-c"><span class="pl-c">#</span> 如果网络慢，可用国内镜像：</span>
+uv sync --all-extras --default-index <span class="pl-s"><span class="pl-pds">"</span>https://mirrors.aliyun.com/pypi/simple<span class="pl-pds">"</span></span></pre></div>
 <h4>2. 下载模型</h4>
-<pre lang="bash" class="notranslate"><code class="notranslate"># HuggingFace
-uv tool install "huggingface-hub[cli,hf_xet]"
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c"><span class="pl-c">#</span> HuggingFace</span>
+uv tool install <span class="pl-s"><span class="pl-pds">"</span>huggingface-hub[cli,hf_xet]<span class="pl-pds">"</span></span>
 hf download IndexTeam/IndexTTS-2 --local-dir=checkpoints
 
-# 或 ModelScope
-uv tool install "modelscope"
+<span class="pl-c"><span class="pl-c">#</span> 或 ModelScope</span>
+uv tool install <span class="pl-s"><span class="pl-pds">"</span>modelscope<span class="pl-pds">"</span></span>
 modelscope download --model IndexTeam/IndexTTS-2 --local_dir checkpoints
 
-# 或 直接用 uvx 方式临时调用
+<span class="pl-c"><span class="pl-c">#</span> 或 直接用 uvx 方式临时调用</span>
 uvx modelscope download --model IndexTeam/IndexTTS-2 --local_dir checkpoints
-
-</code></pre>
+</pre></div>
 <h4>3. 检查 GPU 环境</h4>
-<pre lang="bash" class="notranslate"><code class="notranslate">uv run tools/gpu_check.py
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">uv run tools/gpu_check.py</pre></div>
 <h4>4. 启动 WebUI</h4>
-<pre lang="bash" class="notranslate"><code class="notranslate">uv run webui.py
-# 浏览器访问 http://127.0.0.1:7860
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">uv run webui.py
+<span class="pl-c"><span class="pl-c">#</span> 浏览器访问 http://127.0.0.1:7860</span></pre></div>
 <h4>5. Python 调用示例</h4>
-<pre lang="python" class="notranslate"><code class="notranslate">from indextts.infer_v2 import IndexTTS2
+<div class="highlight highlight-source-python"><pre class="notranslate"><span class="pl-k">from</span> <span class="pl-s1">indextts</span>.<span class="pl-s1">infer_v2</span> <span class="pl-k">import</span> <span class="pl-v">IndexTTS2</span>
 
-tts = IndexTTS2(cfg_path="checkpoints/config.yaml", model_dir="checkpoints", use_fp16=True)
-text = "Translate for me, what is a surprise!"
-tts.infer(spk_audio_prompt='examples/voice_01.wav', text=text, output_path="gen.wav", verbose=True)
-</code></pre>
+<span class="pl-s1">tts</span> <span class="pl-c1">=</span> <span class="pl-en">IndexTTS2</span>(<span class="pl-s1">cfg_path</span><span class="pl-c1">=</span><span class="pl-s">"checkpoints/config.yaml"</span>, <span class="pl-s1">model_dir</span><span class="pl-c1">=</span><span class="pl-s">"checkpoints"</span>, <span class="pl-s1">use_fp16</span><span class="pl-c1">=</span><span class="pl-c1">True</span>)
+<span class="pl-s1">text</span> <span class="pl-c1">=</span> <span class="pl-s">"Translate for me, what is a surprise!"</span>
+<span class="pl-s1">tts</span>.<span class="pl-c1">infer</span>(<span class="pl-s1">spk_audio_prompt</span><span class="pl-c1">=</span><span class="pl-s">'examples/voice_01.wav'</span>, <span class="pl-s1">text</span><span class="pl-c1">=</span><span class="pl-s1">text</span>, <span class="pl-s1">output_path</span><span class="pl-c1">=</span><span class="pl-s">"gen.wav"</span>, <span class="pl-s1">verbose</span><span class="pl-c1">=</span><span class="pl-c1">True</span>)</pre></div>
 <h2>运行代码</h2>
 <pre class="notranslate"><code class="notranslate"># .vscode/preview.yml
 autoOpen: true # 打开工作空间时是否自动开启所有应用的预览
