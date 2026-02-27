@@ -25,7 +25,7 @@
 <meta property="og:url" content="https://feeday.cn/post/an-wen-ben-pi-pei-yi-dong-wen-jian.html">
 <meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
 <title>按文本匹配移动文件</title>
-<link href="//unpkg.com/@wooorm/starry-night@2.1.1/style/both.css" rel="stylesheet" />
+
 
 
 </head>
@@ -137,66 +137,67 @@ error
 </code></pre>
 <hr>
 <h2>🧠 实现代码</h2>
-<div class="highlight highlight-source-python"><pre class="notranslate"><span class="pl-k">import</span> <span class="pl-s1">os</span>
-<span class="pl-k">import</span> <span class="pl-s1">shutil</span>
+<pre lang="python" class="notranslate"><code class="notranslate">import os
+import shutil
 
-<span class="pl-k">def</span> <span class="pl-en">move_files_from_txt</span>(<span class="pl-s1">txt_file</span>, <span class="pl-s1">source_dir</span>, <span class="pl-s1">target_dir</span>):
-    <span class="pl-s">"""</span>
-<span class="pl-s">    根据 TXT 文件中的关键字匹配并移动文件。</span>
-<span class="pl-s">    仅移动文件名中包含任意关键字的第一个文件。</span>
-<span class="pl-s">    """</span>
+def move_files_from_txt(txt_file, source_dir, target_dir):
+    """
+    根据 TXT 文件中的关键字匹配并移动文件。
+    仅移动文件名中包含任意关键字的第一个文件。
+    """
 
-    <span class="pl-c"># 创建目标目录</span>
-    <span class="pl-s1">os</span>.<span class="pl-c1">makedirs</span>(<span class="pl-s1">target_dir</span>, <span class="pl-s1">exist_ok</span><span class="pl-c1">=</span><span class="pl-c1">True</span>)
+    # 创建目标目录
+    os.makedirs(target_dir, exist_ok=True)
 
-    <span class="pl-c"># 读取关键字并去重、排序</span>
-    <span class="pl-k">with</span> <span class="pl-en">open</span>(<span class="pl-s1">txt_file</span>, <span class="pl-s">'r'</span>, <span class="pl-s1">encoding</span><span class="pl-c1">=</span><span class="pl-s">'utf-8'</span>) <span class="pl-k">as</span> <span class="pl-s1">f</span>:
-        <span class="pl-s1">keys</span> <span class="pl-c1">=</span> <span class="pl-en">sorted</span>({<span class="pl-s1">line</span>.<span class="pl-c1">strip</span>() <span class="pl-k">for</span> <span class="pl-s1">line</span> <span class="pl-c1">in</span> <span class="pl-s1">f</span> <span class="pl-k">if</span> <span class="pl-s1">line</span>.<span class="pl-c1">strip</span>()})
+    # 读取关键字并去重、排序
+    with open(txt_file, 'r', encoding='utf-8') as f:
+        keys = sorted({line.strip() for line in f if line.strip()})
 
-    <span class="pl-s1">moved_keys</span> <span class="pl-c1">=</span> <span class="pl-en">set</span>()
+    moved_keys = set()
 
-    <span class="pl-c"># 遍历关键字匹配文件</span>
-    <span class="pl-k">for</span> <span class="pl-s1">key</span> <span class="pl-c1">in</span> <span class="pl-s1">keys</span>:
-        <span class="pl-s1">found</span> <span class="pl-c1">=</span> <span class="pl-c1">False</span>
-        <span class="pl-k">for</span> <span class="pl-s1">root</span>, <span class="pl-s1">_</span>, <span class="pl-s1">files</span> <span class="pl-c1">in</span> <span class="pl-s1">os</span>.<span class="pl-c1">walk</span>(<span class="pl-s1">source_dir</span>):
-            <span class="pl-k">for</span> <span class="pl-s1">fname</span> <span class="pl-c1">in</span> <span class="pl-s1">files</span>:
-                <span class="pl-k">if</span> <span class="pl-s1">key</span> <span class="pl-c1">in</span> <span class="pl-s1">fname</span>:
-                    <span class="pl-s1">src</span> <span class="pl-c1">=</span> <span class="pl-s1">os</span>.<span class="pl-c1">path</span>.<span class="pl-c1">join</span>(<span class="pl-s1">root</span>, <span class="pl-s1">fname</span>)
-                    <span class="pl-s1">dst</span> <span class="pl-c1">=</span> <span class="pl-s1">os</span>.<span class="pl-c1">path</span>.<span class="pl-c1">join</span>(<span class="pl-s1">target_dir</span>, <span class="pl-s1">fname</span>)
+    # 遍历关键字匹配文件
+    for key in keys:
+        found = False
+        for root, _, files in os.walk(source_dir):
+            for fname in files:
+                if key in fname:
+                    src = os.path.join(root, fname)
+                    dst = os.path.join(target_dir, fname)
 
-                    <span class="pl-c"># 若重名则自动加后缀</span>
-                    <span class="pl-k">if</span> <span class="pl-s1">os</span>.<span class="pl-c1">path</span>.<span class="pl-c1">exists</span>(<span class="pl-s1">dst</span>):
-                        <span class="pl-s1">base</span>, <span class="pl-s1">ext</span> <span class="pl-c1">=</span> <span class="pl-s1">os</span>.<span class="pl-c1">path</span>.<span class="pl-c1">splitext</span>(<span class="pl-s1">fname</span>)
-                        <span class="pl-s1">i</span> <span class="pl-c1">=</span> <span class="pl-c1">1</span>
-                        <span class="pl-k">while</span> <span class="pl-s1">os</span>.<span class="pl-c1">path</span>.<span class="pl-c1">exists</span>(<span class="pl-s1">os</span>.<span class="pl-c1">path</span>.<span class="pl-c1">join</span>(<span class="pl-s1">target_dir</span>, <span class="pl-s">f"<span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">base</span><span class="pl-kos">}</span></span>_<span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">i</span><span class="pl-kos">}</span></span><span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">ext</span><span class="pl-kos">}</span></span>"</span>)):
-                            <span class="pl-s1">i</span> <span class="pl-c1">+=</span> <span class="pl-c1">1</span>
-                        <span class="pl-s1">dst</span> <span class="pl-c1">=</span> <span class="pl-s1">os</span>.<span class="pl-c1">path</span>.<span class="pl-c1">join</span>(<span class="pl-s1">target_dir</span>, <span class="pl-s">f"<span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">base</span><span class="pl-kos">}</span></span>_<span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">i</span><span class="pl-kos">}</span></span><span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">ext</span><span class="pl-kos">}</span></span>"</span>)
+                    # 若重名则自动加后缀
+                    if os.path.exists(dst):
+                        base, ext = os.path.splitext(fname)
+                        i = 1
+                        while os.path.exists(os.path.join(target_dir, f"{base}_{i}{ext}")):
+                            i += 1
+                        dst = os.path.join(target_dir, f"{base}_{i}{ext}")
 
-                    <span class="pl-c"># 执行移动</span>
-                    <span class="pl-s1">shutil</span>.<span class="pl-c1">move</span>(<span class="pl-s1">src</span>, <span class="pl-s1">dst</span>)
-                    <span class="pl-en">print</span>(<span class="pl-s">f"✔ 已移动: '<span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">fname</span><span class="pl-kos">}</span></span>' 对应关键字 '<span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">key</span><span class="pl-kos">}</span></span>' 到 '<span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">dst</span><span class="pl-kos">}</span></span>'"</span>)
-                    <span class="pl-s1">moved_keys</span>.<span class="pl-c1">add</span>(<span class="pl-s1">key</span>)
-                    <span class="pl-s1">found</span> <span class="pl-c1">=</span> <span class="pl-c1">True</span>
-                    <span class="pl-k">break</span>
-            <span class="pl-k">if</span> <span class="pl-s1">found</span>:
-                <span class="pl-k">break</span>
+                    # 执行移动
+                    shutil.move(src, dst)
+                    print(f"✔ 已移动: '{fname}' 对应关键字 '{key}' 到 '{dst}'")
+                    moved_keys.add(key)
+                    found = True
+                    break
+            if found:
+                break
 
-        <span class="pl-k">if</span> <span class="pl-c1">not</span> <span class="pl-s1">found</span>:
-            <span class="pl-en">print</span>(<span class="pl-s">f"⚠ 未找到匹配文件 for key: '<span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">key</span><span class="pl-kos">}</span></span>'"</span>)
-
-
-    <span class="pl-c"># 汇总统计</span>
-    <span class="pl-s1">total</span> <span class="pl-c1">=</span> <span class="pl-en">len</span>(<span class="pl-s1">keys</span>)
-    <span class="pl-s1">success</span> <span class="pl-c1">=</span> <span class="pl-en">len</span>(<span class="pl-s1">moved_keys</span>)
-    <span class="pl-en">print</span>(<span class="pl-s">f"<span class="pl-cce">\n</span>共 <span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">total</span><span class="pl-kos">}</span></span> 个关键字，成功移动 <span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">success</span><span class="pl-kos">}</span></span> 个，对应文件。未移动 <span class="pl-s1"><span class="pl-kos">{</span><span class="pl-s1">total</span> <span class="pl-c1">-</span> <span class="pl-s1">success</span><span class="pl-kos">}</span></span> 个。"</span>)
+        if not found:
+            print(f"⚠ 未找到匹配文件 for key: '{key}'")
 
 
-<span class="pl-k">if</span> <span class="pl-s1">__name__</span> <span class="pl-c1">==</span> <span class="pl-s">'__main__'</span>:
-    <span class="pl-s1">txt_file</span> <span class="pl-c1">=</span> <span class="pl-s">r"H:\list.txt"</span>
-    <span class="pl-s1">source_directory</span> <span class="pl-c1">=</span> <span class="pl-s">r"H:\data"</span>
-    <span class="pl-s1">target_directory</span> <span class="pl-c1">=</span> <span class="pl-s">r"H:\copy"</span>
+    # 汇总统计
+    total = len(keys)
+    success = len(moved_keys)
+    print(f"\n共 {total} 个关键字，成功移动 {success} 个，对应文件。未移动 {total - success} 个。")
 
-    <span class="pl-en">move_files_from_txt</span>(<span class="pl-s1">txt_file</span>, <span class="pl-s1">source_directory</span>, <span class="pl-s1">target_directory</span>)</pre></div>
+
+if __name__ == '__main__':
+    txt_file = r"H:\list.txt"
+    source_directory = r"H:\data"
+    target_directory = r"H:\copy"
+
+    move_files_from_txt(txt_file, source_directory, target_directory)
+</code></pre>
 <hr>
 <h2>🧾 输出统计说明</h2>
 <markdown-accessiblity-table><table role="table">
@@ -226,12 +227,15 @@ error
 <ul>
 <li>仅匹配<strong>文件名包含关键字</strong>的第一个文件。</li>
 <li>若希望 <strong>不区分大小写</strong>，可将判断修改为：
-<div class="highlight highlight-source-python"><pre class="notranslate"><span class="pl-k">if</span> <span class="pl-s1">key</span>.<span class="pl-c1">lower</span>() <span class="pl-c1">in</span> <span class="pl-s1">fname</span>.<span class="pl-c1">lower</span>():</pre></div>
+<pre lang="python" class="notranslate"><code class="notranslate">if key.lower() in fname.lower():
+</code></pre>
 </li>
 <li>若希望<strong>复制而非移动</strong>，可将：
-<div class="highlight highlight-source-python"><pre class="notranslate"><span class="pl-s1">shutil</span>.<span class="pl-c1">move</span>(<span class="pl-s1">src</span>, <span class="pl-s1">dst</span>)</pre></div>
+<pre lang="python" class="notranslate"><code class="notranslate">shutil.move(src, dst)
+</code></pre>
 改为：
-<div class="highlight highlight-source-python"><pre class="notranslate"><span class="pl-s1">shutil</span>.<span class="pl-c1">copy2</span>(<span class="pl-s1">src</span>, <span class="pl-s1">dst</span>)</pre></div>
+<pre lang="python" class="notranslate"><code class="notranslate">shutil.copy2(src, dst)
+</code></pre>
 </li>
 </ul>
 <hr>
