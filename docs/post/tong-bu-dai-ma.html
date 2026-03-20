@@ -279,7 +279,7 @@ git merge branch-name
 <meta property="og:url" content="https://feeday.cn/post/tong-bu-dai-ma.html">
 <meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
 <title>同步代码</title>
-
+<link href="//unpkg.com/@wooorm/starry-night@2.1.1/style/both.css" rel="stylesheet" />
 
 
 </head>
@@ -374,53 +374,41 @@ git commit -m "Test"
 </code></pre>
 <h3>1. <strong>克隆远程仓库</strong></h3>
 <p>克隆一个远程仓库到本地，命令如下：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git clone https://github.com/lllyasviel/Fooocus.git
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git clone https://github.com/lllyasviel/Fooocus.git</pre></div>
 <h3>2. <strong>检查当前 Git 配置</strong></h3>
 <p>查看 Git 的全局配置，如用户名和邮箱：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git config --list
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git config --list</pre></div>
 <h3>3. <strong>检查当前状态</strong></h3>
 <p>查看当前工作目录和暂存区的状态（哪些文件已修改、未跟踪等）：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git status
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git status</pre></div>
 <h3>4. <strong>添加文件到暂存区</strong></h3>
 <p>将文件添加到暂存区，准备提交：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git add &lt;file_name&gt;  # 添加指定文件
-git add .  # 添加所有修改的文件
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git add <span class="pl-k">&lt;</span>file_name<span class="pl-k">&gt;</span>  <span class="pl-c"><span class="pl-c">#</span> 添加指定文件</span>
+git add <span class="pl-c1">.</span>  <span class="pl-c"><span class="pl-c">#</span> 添加所有修改的文件</span></pre></div>
 <h3>5. <strong>提交更改</strong></h3>
 <p>提交更改并添加提交信息：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git commit -m "描述本次提交的内容"
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git commit -m <span class="pl-s"><span class="pl-pds">"</span>描述本次提交的内容<span class="pl-pds">"</span></span></pre></div>
 <h3>6. <strong>推送远程仓库</strong></h3>
 <p>将本地更改推送到远程仓库：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git push origin branch-name
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git push origin branch-name</pre></div>
 <h3>7. <strong>远程仓库更新</strong></h3>
 <p>拉取远程仓库的更新，并合并到当前分支：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git pull origin branch-name
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git pull origin branch-name</pre></div>
 <h3>8. <strong>查看远程仓库信息</strong></h3>
 <p>查看当前项目的远程仓库地址：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git remote -v
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git remote -v</pre></div>
 <h3>9. <strong>查看提交历史</strong></h3>
 <p>查看提交历史记录：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git log
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git log</pre></div>
 <h3>10. <strong>创建新分支</strong></h3>
 <p>创建一个新分支，并切换到该分支：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git checkout -b new-branch-name
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git checkout -b new-branch-name</pre></div>
 <h3>11. <strong>切换分支</strong></h3>
 <p>切换到已有的分支：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git checkout branch-name
-</code></pre>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git checkout branch-name</pre></div>
 <h3>12. <strong>合并分支</strong></h3>
 <p>将当前分支合并到目标分支：</p>
-<pre lang="bash" class="notranslate"><code class="notranslate">git merge branch-name
-</code></pre></div>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git merge branch-name</pre></div></div>
 <div style="font-size:small;margin-top:8px;float:right;">❤️ 转载文章请注明出处，谢谢！❤️</div>
 
 <button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
