@@ -5,8 +5,10 @@
 termux-setup-storage #授予手机存储权限
 
 pkg install wget
+pkg install iproute2
 pkg install openssh -y
 passwd
+ip addr
 
 termux-change-repo #切换源
 pkg update #更新源
