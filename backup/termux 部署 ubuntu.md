@@ -18,8 +18,8 @@ proot-distro login ubuntu #进入系统
 
 ## 系统命令
 ```
-apt update && apt upgrade -y  #更新系统软件源列表
-apt install python3 python3-pip nano -y #Python 及包管理工具
+apt update && apt install openssh-server nano -y #更新系统软件源列表
+apt install python3 python3-pip y #Python 及包管理工具
 ```
 
 ## 网盘备份
