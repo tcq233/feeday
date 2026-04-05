@@ -3,7 +3,11 @@
 ## 常用命令
 ```
 termux-setup-storage #授予手机存储权限
-pkg install wget #pkg install wget
+
+pkg install wget
+pkg install openssh -y
+passwd
+
 termux-change-repo #切换源
 pkg update #更新源
 proot-distro install ubuntu #安装系统
