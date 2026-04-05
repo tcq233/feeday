@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>feeday</title><link>https://feeday.cn</link><description>BB Work No Money</description><copyright>feeday</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://feeday.cn</link></image><lastBuildDate>Sun, 05 Apr 2026 06:17:35 +0000</lastBuildDate><managingEditor>feeday</managingEditor><ttl>60</ttl><webMaster>feeday</webMaster><item><title>termux 部署 ubuntu</title><link>https://feeday.cn/post/termux%20-bu-shu-%20ubuntu.html</link><description>- https://github.com/termux/termux-app
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>feeday</title><link>https://feeday.cn</link><description>BB Work No Money</description><copyright>feeday</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://feeday.cn</link></image><lastBuildDate>Sun, 05 Apr 2026 06:26:12 +0000</lastBuildDate><managingEditor>feeday</managingEditor><ttl>60</ttl><webMaster>feeday</webMaster><item><title>termux 部署 ubuntu</title><link>https://feeday.cn/post/termux%20-bu-shu-%20ubuntu.html</link><description>- https://github.com/termux/termux-app
 
 ## 常用命令
 ```
@@ -8,9 +8,16 @@ pkg install wget #pkg install wget
 termux-change-repo #切换源
 pkg update #更新源
 proot-distro install ubuntu #安装系统
+proot-distro login ubuntu #进入系统
 ```
 
-# 网盘备份
+## 系统命令
+```
+apt update &amp;&amp; apt upgrade -y  #更新系统软件源列表
+apt install python3 python3-pip nano -y #Python 及包管理工具
+```
+
+## 网盘备份
 
 - https://pan.quark.cn/s/f005ed0656b2
 - Null_Keyboard.apk 
