@@ -1,0 +1,132 @@
+<!-- This Code From Network,For Personal Study Only Use,If there is any infringement,Please Contact 0xf197#gmail.com. -->
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>─=≡Σ((( つ•̀ω•́)つ</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="format-detection" content="telephone=no">
+<style>
+body {
+  margin:0;
+  padding:0;
+  font-size:14px;
+  font-family: "microsoft yahei",Arial,Verdana,Helvetica,sans-serif;
+  background:#f7f8fa;
+  overflow-x:hidden;
+}
+
+/* 顶部空白留给 iframe */
+.top-gap {
+  height: 0px;
+}
+
+/* iframe 区域 */
+#msgFrame {
+  width:100%;
+  height: calc(100vh - 55px);
+  border: none;
+  display:block;
+}
+
+/* ⭐底部悬浮栏⭐ */
+.floating-bar {
+  position: fixed;
+  bottom: 0; 
+  left: 0; 
+  right: 0;
+  height: 55px;
+  background: #fff;
+  border-top: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  z-index: 999;
+}
+
+/* 左侧文本区域：可压缩 */
+.floating-left {
+  flex: 1;
+  display: flex;
+  white-space: nowrap;
+  overflow: hidden;
+  align-items: center;
+}
+
+/* 信息框 */
+.info-box {
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #666;
+  border: 1px solid #ccc;
+  border-left: none;
+  border-right: none;
+  white-space: nowrap;
+}
+
+/* 右侧图片按钮 */
+.floating-img {
+  flex-shrink: 0; /* 图片不被挤压 */
+  margin-left: 10px;
+}
+
+.floating-img img {
+  height: 42px;  /* 保证完整显示 */
+  width: auto;
+  border-radius: 6px;
+  display: block;
+}
+
+/* 顶部 banner */
+.banner {
+  text-align:center;
+  margin: 12px 0;
+}
+
+.banner img {
+  width: 100%;
+}
+</style>
+</head>
+
+<body>
+
+<div class="top-gap"></div>
+
+<!-- 主 iframe 留言墙 -->
+<iframe
+  id="msgFrame"
+  src="https://cpuck.com/video/xzt.php"
+  scrolling="yes"
+  allowfullscreen>
+</iframe>
+
+<!-- ⭐底部悬浮区域⭐ -->
+<div class="floating-bar">
+
+ <div style="display: flex; justify-content: center; align-items: center;">
+<span id="delay" style="box-sizing: border-box; margin: 0; padding: 5px 10px; font-size: 12px; line-height: 1.71428em; color: #999; display: inline-block; text-align: center; border: 1px solid #ccc; border-left: none;">
+<script id="LA-DATA-WIDGET" crossorigin="anonymous" charset="UTF-8" src="https://v6-widget.51.la/v6/JRHGRBPWC7lJIaXq/quote.js?theme=0&f=12&display=0,0,1,1,0,0,0,0"></script>
+</span>
+<span id="performance-result" style="box-sizing: border-box; margin: 0; padding: 5px 10px; font-size: 12px; line-height: 1.71428em; color: #999; display: inline-block; text-align: center; border: 1px solid #ccc; border-right: none;">页面加载完成时间: -- ms</span>
+</div>
+
+
+</div>
+
+<!-- 页面加载测速 -->
+<script>
+var start = new Date().getTime();
+window.addEventListener('load', function () {
+  var end = new Date().getTime();
+  var time = end - start;
+  document.getElementById('performance-result').innerHTML =
+    '页面加载时间: ' + time + 'ms';
+});
+</script>
+
+</body>
+</html>
