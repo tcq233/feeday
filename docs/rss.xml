@@ -1,5 +1,160 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>feeday</title><link>https://feeday.cn</link><description>BB Work No Money</description><copyright>feeday</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://feeday.cn</link></image><lastBuildDate>Sun, 12 Apr 2026 08:41:56 +0000</lastBuildDate><managingEditor>feeday</managingEditor><ttl>60</ttl><webMaster>feeday</webMaster><item><title>页面跳转代码</title><link>https://feeday.cn/post/ye-mian-tiao-zhuan-dai-ma.html</link><description>### 纯 HTML 最快：Meta Refresh 标签
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>feeday</title><link>https://feeday.cn</link><description>BB Work No Money</description><copyright>feeday</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://feeday.cn</link></image><lastBuildDate>Mon, 13 Apr 2026 14:30:45 +0000</lastBuildDate><managingEditor>feeday</managingEditor><ttl>60</ttl><webMaster>feeday</webMaster><item><title>ComfyUI 远程访问与调用</title><link>https://feeday.cn/post/ComfyUI%20-yuan-cheng-fang-wen-yu-diao-yong.html</link><description>```
+pip install flask websocket-client requests
+```
+
+```
+import json
+import uuid
+import websocket
+import urllib.request
+import urllib.parse
+import random
+import threading
+import requests  # 必须 pip install requests
+from flask import Flask, request, jsonify, Response
+
+app = Flask(__name__)
+
+# ================= 基础配置 =================
+COMFY_ADDR = '127.0.0.1:8188'  # ComfyUI 的地址
+CLIENT_ID = str(uuid.uuid4())
+gpu_lock = threading.Lock()    # 显存保护锁
+
+def queue_prompt(prompt_workflow):
+    p = {'prompt': prompt_workflow, 'client_id': CLIENT_ID}
+    data = json.dumps(p).encode('utf-8')
+    req = urllib.request.Request(f'http://{COMFY_ADDR}/prompt', data=data)
+    return json.loads(urllib.request.urlopen(req).read())
+
+def upload_image_to_comfyui(file_stream, filename):
+    '''将用户上传的图片转发给 ComfyUI 的后台'''
+    url = f'http://{COMFY_ADDR}/upload/image'
+    files = {'image': (filename, file_stream)}
+    res = requests.post(url, files=files)
+    return res.json()['name'] # 返回 ComfyUI 重命名后的文件名
+
+# ================= 前端页面路由 =================
+@app.route('/')
+def index():
+    return '''
+    &lt;!DOCTYPE html&gt;
+    &lt;html lang='zh-CN'&gt;
+    &lt;head&gt;
+        &lt;meta charset='UTF-8'&gt;
+        &lt;meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'&gt;
+        &lt;title&gt;Z-Image AI 创作中心&lt;/title&gt;
+        &lt;style&gt;
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; padding: 15px; margin: 0; display: flex; justify-content: center; }
+            .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 600px; box-sizing: border-box; }
+            h2 { text-align: center; margin-top: 0; color: #333; }
+            
+            /* 选项卡样式 */
+            .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+            .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; font-weight: bold; color: #888; transition: 0.3s; }
+            .tab.active { color: #007bff; border-bottom: 2px solid #007bff; }
+            
+            .input-group { margin-bottom: 15px; text-align: left; }
+            .input-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #555; }
+            input[type='text'], input[type='file'] { width: 100%; padding: 12px; font-size: 15px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+            
+            button { width: 100%; padding: 14px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; font-weight: bold; }
+            button:hover { background-color: #0056b3; }
+            button:disabled { background-color: #aaa; cursor: not-allowed; }
+            
+            #status { margin: 15px 0; font-weight: bold; color: #555; text-align: center; font-size: 14px;}
+            #resultImg { width: 100%; border-radius: 8px; margin-top: 10px; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        &lt;/style&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        &lt;div class='container'&gt;
+            &lt;h2&gt;✨ AI 创作中心&lt;/h2&gt;
+            
+            &lt;div class='tabs'&gt;
+                &lt;div class='tab active' onclick='switchMode('t2i')' id='tab-t2i'&gt;文生图&lt;/div&gt;
+                &lt;div class='tab' onclick='switchMode('i2i')' id='tab-i2i'&gt;图改图&lt;/div&gt;
+            &lt;/div&gt;
+
+            &lt;form id='genForm'&gt;
+                &lt;div class='input-group' id='file-upload-group' style='display: none;'&gt;
+                    &lt;label&gt;上传参考图：&lt;/label&gt;
+                    &lt;input type='file' id='uploadImage' accept='image/*'&gt;
+                &lt;/div&gt;
+
+                &lt;div class='input-group'&gt;
+                    &lt;label id='prompt-label'&gt;画面描述：&lt;/label&gt;
+                    &lt;input type='text' id='prompt' placeholder='例如：a beautiful cyberpunk city...' value='a beautiful girl, cinematic lighting, 8k'&gt;
+                &lt;/div&gt;
+
+                &lt;button type='button' id='genBtn' onclick='generate()'&gt;立即生成&lt;/button&gt;
+            &lt;/form&gt;
+            
+            &lt;p id='status'&gt;&lt;/p&gt;
+            &lt;img id='resultImg' src=''&gt;
+        &lt;/div&gt;
+
+        &lt;script&gt;
+            let currentMode = 't2i';
+
+            function switchMode(mode) {
+                currentMode = mode;
+                document.getElementById('tab-t2i').className = mode === 't2i' ? 'tab active' : 'tab';
+                document.getElementById('tab-i2i').className = mode === 'i2i' ? 'tab active' : 'tab';
+                
+                document.getElementById('file-upload-group').style.display = mode === 'i2i' ? 'block' : 'none';
+                
+                if(mode === 'i2i') {
+                    document.getElementById('prompt-label').innerText = '修改指令：';
+                    document.getElementById('prompt').value = '猫换成狗';
+                    document.getElementById('prompt').placeholder = '描述你要怎么改...';
+                } else {
+                    document.getElementById('prompt-label').innerText = '画面描述：';
+                    document.getElementById('prompt').value = 'a beautiful girl, cinematic lighting, 8k';
+                }
+            }
+
+            async function generate() {
+                const btn = document.getElementById('genBtn');
+                const status = document.getElementById('status');
+                const img = document.getElementById('resultImg');
+                const prompt = document.getElementById('prompt').value;
+                const fileInput = document.getElementById('uploadImage');
+                
+                if(!prompt) { alert('请输入提示词！'); return; }
+                if(currentMode === 'i2i' &amp;&amp; fileInput.files.length === 0) {
+                    alert('请上传一张参考图！'); return;
+                }
+
+                btn.disabled = true;
+                btn.innerText = '生成中...';
+                status.innerText = '🚀 正在连接 AI 服务器排队...';
+                img.style.display = 'none';
+
+                // 使用 FormData 发送文本和文件
+                const formData = new FormData();
+                formData.append('mode', currentMode);
+                formData.append('prompt', prompt);
+                if(currentMode === 'i2i') {
+                    formData.append('image', fileInput.files[0]);
+                }
+
+                try {
+                    const response = await fetch('/generate', {
+                        method: 'POST',
+                        body: formData // 注意：使用 FormData 不要手动设置 Content-Type 头
+                    });
+                    const data = await response.json();
+                    
+                    if(data.status === 'success') {
+                        status.innerText = '🎉 生成成功！';
+                        // 直接使用 Flask 代理返回的相对路径
+                        img.src = data.image_url + '?t=' + new Date().getTime(); 
+                        img.style.display = 'block';
+                    } else {
+                        status.innerText = '❌ 生成失败: ' + (data.message || '未知错误');
+                    }
+                } catch (error) {
+                    status.innerText = '❌ 网络请求错误，请确认服务已启动。</description><guid isPermaLink="true">https://feeday.cn/post/ComfyUI%20-yuan-cheng-fang-wen-yu-diao-yong.html</guid><pubDate>Mon, 13 Apr 2026 14:30:12 +0000</pubDate></item><item><title>页面跳转代码</title><link>https://feeday.cn/post/ye-mian-tiao-zhuan-dai-ma.html</link><description>### 纯 HTML 最快：Meta Refresh 标签
 如果由于某种原因（比如有些平台屏蔽了 JS 脚本）只能使用纯 HTML，可以使用 &lt;meta&gt; 标签。</description><guid isPermaLink="true">https://feeday.cn/post/ye-mian-tiao-zhuan-dai-ma.html</guid><pubDate>Sun, 12 Apr 2026 08:41:26 +0000</pubDate></item><item><title>termux 部署 ubuntu</title><link>https://feeday.cn/post/termux%20-bu-shu-%20ubuntu.html</link><description>- https://github.com/termux/termux-app
 
 ## 常用命令
