@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>feeday</title><link>https://feeday.cn</link><description>BB Work No Money</description><copyright>feeday</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://feeday.cn</link></image><lastBuildDate>Thu, 16 Apr 2026 14:01:32 +0000</lastBuildDate><managingEditor>feeday</managingEditor><ttl>60</ttl><webMaster>feeday</webMaster><item><title>ComfyUI 远程访问与调用</title><link>https://feeday.cn/post/ComfyUI%20-yuan-cheng-fang-wen-yu-diao-yong.html</link><description>```
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>feeday</title><link>https://feeday.cn</link><description>BB Work No Money</description><copyright>feeday</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://feeday.cn</link></image><lastBuildDate>Thu, 16 Apr 2026 14:03:26 +0000</lastBuildDate><managingEditor>feeday</managingEditor><ttl>60</ttl><webMaster>feeday</webMaster><item><title>ComfyUI 远程访问与调用</title><link>https://feeday.cn/post/ComfyUI%20-yuan-cheng-fang-wen-yu-diao-yong.html</link><description>```
 pip install flask websocket-client requests
 ```
 
@@ -239,6 +239,8 @@ if __name__ == '__main__':
 。</description><guid isPermaLink="true">https://feeday.cn/post/ComfyUI%20-yuan-cheng-fang-wen-yu-diao-yong.html</guid><pubDate>Mon, 13 Apr 2026 14:30:12 +0000</pubDate></item><item><title>页面跳转代码</title><link>https://feeday.cn/post/ye-mian-tiao-zhuan-dai-ma.html</link><description>### 纯 HTML 最快：Meta Refresh 标签
 如果由于某种原因（比如有些平台屏蔽了 JS 脚本）只能使用纯 HTML，可以使用 &lt;meta&gt; 标签。</description><guid isPermaLink="true">https://feeday.cn/post/ye-mian-tiao-zhuan-dai-ma.html</guid><pubDate>Sun, 12 Apr 2026 08:41:26 +0000</pubDate></item><item><title>termux 部署 ubuntu</title><link>https://feeday.cn/post/termux%20-bu-shu-%20ubuntu.html</link><description>- https://github.com/termux/termux-app
 - https://github.com/mayukh4/linux-android
+- https://github.com/termux/termux-x11/releases
+- https://f-droid.org/en/packages/com.termux/
 
 ## 常用命令
 

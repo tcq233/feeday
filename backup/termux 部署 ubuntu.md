@@ -1,5 +1,7 @@
 - https://github.com/termux/termux-app
 - https://github.com/mayukh4/linux-android
+- https://github.com/termux/termux-x11/releases
+- https://f-droid.org/en/packages/com.termux/
 
 ## 常用命令
 
