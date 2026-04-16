@@ -1,8 +1,27 @@
 - https://github.com/termux/termux-app
+- https://github.com/mayukh4/linux-android
 
 ## 常用命令
+
+
 ```
+termux-wake-lock 
 termux-setup-storage #授予手机存储权限
+
+curl -O https://raw.githubusercontent.com/mayukh4/linux-anroid/main/termux-linux-setup.sh
+chmod +x termux-linux-setup.sh
+bash termux-linux-setup.sh
+
+bash ~/start-linux.sh
+bash ~/stop-linux.sh
+
+
+sshd
+passwd
+
+ip addr show wlan0 | grep 'inet '
+
+ssh your-termux-username@192.168.1.42 -p 8022
 
 pkg install wget
 pkg install iproute2

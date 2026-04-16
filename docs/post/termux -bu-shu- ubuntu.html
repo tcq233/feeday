@@ -11,10 +11,29 @@
         document.documentElement.setAttribute("data-color-mode", theme);
     </script>
 <meta name="description" content="- https://github.com/termux/termux-app
+- https://github.com/mayukh4/linux-android
 
 ## 常用命令
+
+
 ```
+termux-wake-lock 
 termux-setup-storage #授予手机存储权限
+
+curl -O https://raw.githubusercontent.com/mayukh4/linux-anroid/main/termux-linux-setup.sh
+chmod +x termux-linux-setup.sh
+bash termux-linux-setup.sh
+
+bash ~/start-linux.sh
+bash ~/stop-linux.sh
+
+
+sshd
+passwd
+
+ip addr show wlan0 | grep 'inet '
+
+ssh your-termux-username@192.168.1.42 -p 8022
 
 pkg install wget
 pkg install iproute2
@@ -41,10 +60,29 @@ apt install python3 python3-pip y #Python 及包管理工具
 - termux_1022.apk。">
 <meta property="og:title" content="termux 部署 ubuntu">
 <meta property="og:description" content="- https://github.com/termux/termux-app
+- https://github.com/mayukh4/linux-android
 
 ## 常用命令
+
+
 ```
+termux-wake-lock 
 termux-setup-storage #授予手机存储权限
+
+curl -O https://raw.githubusercontent.com/mayukh4/linux-anroid/main/termux-linux-setup.sh
+chmod +x termux-linux-setup.sh
+bash termux-linux-setup.sh
+
+bash ~/start-linux.sh
+bash ~/stop-linux.sh
+
+
+sshd
+passwd
+
+ip addr show wlan0 | grep 'inet '
+
+ssh your-termux-username@192.168.1.42 -p 8022
 
 pkg install wget
 pkg install iproute2
@@ -141,9 +179,26 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
     <div id="content">
 <div class="markdown-body" id="postBody"><ul>
 <li><a href="https://github.com/termux/termux-app">https://github.com/termux/termux-app</a></li>
+<li><a href="https://github.com/mayukh4/linux-android">https://github.com/mayukh4/linux-android</a></li>
 </ul>
 <h2>常用命令</h2>
-<pre class="notranslate"><code class="notranslate">termux-setup-storage #授予手机存储权限
+<pre class="notranslate"><code class="notranslate">termux-wake-lock 
+termux-setup-storage #授予手机存储权限
+
+curl -O https://raw.githubusercontent.com/mayukh4/linux-anroid/main/termux-linux-setup.sh
+chmod +x termux-linux-setup.sh
+bash termux-linux-setup.sh
+
+bash ~/start-linux.sh
+bash ~/stop-linux.sh
+
+
+sshd
+passwd
+
+ip addr show wlan0 | grep 'inet '
+
+ssh your-termux-username@192.168.1.42 -p 8022
 
 pkg install wget
 pkg install iproute2
