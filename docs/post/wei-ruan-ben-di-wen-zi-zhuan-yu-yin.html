@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    <script src='/gmeek/GmeekVercount.js'></script>
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="## HTML 版本
+```
+<!DOCTYPE html>
+<html lang='zh-CN'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>文本转语音并播放</title>
+</head>
+<body>
+    <h1>文本转语音并播放</h1>
+
+    <label for='textInput'>请输入文本：</label><br>
+    <textarea id='textInput' rows='4' cols='50'></textarea><br><br>
+
+    <label for='filterChinese'>只显示中文语音？</label>
+    <input type='checkbox' id='filterChinese' checked><br><br>
+
+    <label for='voiceSelect'>选择语音（音色）：</label>
+    <select id='voiceSelect'></select><br><br>
+
+    <button id='startButton'>开始朗读</button>
+    <button id='stopButton'>停止朗读</button>
+
+    <script>
+        // 获取可用的语音并填充选择框
+        function populateVoiceList() {
+            const voices = speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voiceSelect');
+            const filterChinese = document.getElementById('filterChinese').checked;
+            voiceSelect.innerHTML = ''; // 清空现有选项
+
+            // 支持所有语音（更多音色），或可选过滤中文
+            let filteredVoices = voices;
+            if (filterChinese) {
+                filteredVoices = voices.filter(voice => voice.lang.startsWith('zh-')); // 支持 zh-CN, zh-TW 等
+            }
+
+            console.log('可用语音列表:', filteredVoices); // 调试：打印到控制台
+
+            if (filteredVoices.length === 0) {
+                // 如果没有语音，显示提示
+                const option = document.createElement('option');
+                option.textContent = '无可用语音（请安装TTS引擎）';
+                option.disabled = true;
+                voiceSelect.appendChild(option);
+                alert('未检测到任何可用语音。">
+<meta property="og:title" content="微软本地文字转语音">
+<meta property="og:description" content="## HTML 版本
+```
+<!DOCTYPE html>
+<html lang='zh-CN'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>文本转语音并播放</title>
+</head>
+<body>
+    <h1>文本转语音并播放</h1>
+
+    <label for='textInput'>请输入文本：</label><br>
+    <textarea id='textInput' rows='4' cols='50'></textarea><br><br>
+
+    <label for='filterChinese'>只显示中文语音？</label>
+    <input type='checkbox' id='filterChinese' checked><br><br>
+
+    <label for='voiceSelect'>选择语音（音色）：</label>
+    <select id='voiceSelect'></select><br><br>
+
+    <button id='startButton'>开始朗读</button>
+    <button id='stopButton'>停止朗读</button>
+
+    <script>
+        // 获取可用的语音并填充选择框
+        function populateVoiceList() {
+            const voices = speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voiceSelect');
+            const filterChinese = document.getElementById('filterChinese').checked;
+            voiceSelect.innerHTML = ''; // 清空现有选项
+
+            // 支持所有语音（更多音色），或可选过滤中文
+            let filteredVoices = voices;
+            if (filterChinese) {
+                filteredVoices = voices.filter(voice => voice.lang.startsWith('zh-')); // 支持 zh-CN, zh-TW 等
+            }
+
+            console.log('可用语音列表:', filteredVoices); // 调试：打印到控制台
+
+            if (filteredVoices.length === 0) {
+                // 如果没有语音，显示提示
+                const option = document.createElement('option');
+                option.textContent = '无可用语音（请安装TTS引擎）';
+                option.disabled = true;
+                voiceSelect.appendChild(option);
+                alert('未检测到任何可用语音。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://feeday.cn/post/wei-ruan-ben-di-wen-zi-zhuan-yu-yin.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>微软本地文字转语音</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+.copy-feedback {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    color: var(--color-fg-on-emphasis);
+    background-color: var(--color-fg-muted);
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">微软本地文字转语音</h1>
+<div class="title-right">
+    <a href="https://feeday.cn" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/tcq233/feeday/issues/27" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><h2>HTML 版本</h2>
+<pre class="notranslate"><code class="notranslate">&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-CN"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;文本转语音并播放&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;文本转语音并播放&lt;/h1&gt;
+
+    &lt;label for="textInput"&gt;请输入文本：&lt;/label&gt;&lt;br&gt;
+    &lt;textarea id="textInput" rows="4" cols="50"&gt;&lt;/textarea&gt;&lt;br&gt;&lt;br&gt;
+
+    &lt;label for="filterChinese"&gt;只显示中文语音？&lt;/label&gt;
+    &lt;input type="checkbox" id="filterChinese" checked&gt;&lt;br&gt;&lt;br&gt;
+
+    &lt;label for="voiceSelect"&gt;选择语音（音色）：&lt;/label&gt;
+    &lt;select id="voiceSelect"&gt;&lt;/select&gt;&lt;br&gt;&lt;br&gt;
+
+    &lt;button id="startButton"&gt;开始朗读&lt;/button&gt;
+    &lt;button id="stopButton"&gt;停止朗读&lt;/button&gt;
+
+    &lt;script&gt;
+        // 获取可用的语音并填充选择框
+        function populateVoiceList() {
+            const voices = speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voiceSelect');
+            const filterChinese = document.getElementById('filterChinese').checked;
+            voiceSelect.innerHTML = ''; // 清空现有选项
+
+            // 支持所有语音（更多音色），或可选过滤中文
+            let filteredVoices = voices;
+            if (filterChinese) {
+                filteredVoices = voices.filter(voice =&gt; voice.lang.startsWith('zh-')); // 支持 zh-CN, zh-TW 等
+            }
+
+            console.log('可用语音列表:', filteredVoices); // 调试：打印到控制台
+
+            if (filteredVoices.length === 0) {
+                // 如果没有语音，显示提示
+                const option = document.createElement('option');
+                option.textContent = '无可用语音（请安装TTS引擎）';
+                option.disabled = true;
+                voiceSelect.appendChild(option);
+                alert('未检测到任何可用语音。请确保系统已安装TTS语音包，并在浏览器中刷新页面。');
+                return;
+            }
+
+            // 将语音填充到下拉框
+            filteredVoices.forEach((voice) =&gt; {
+                const option = document.createElement('option');
+                option.value = voice.name;
+                option.textContent = `${voice.name} (${voice.lang})`; // 显示名称和语言，便于选择
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        // 创建朗读函数
+        function speak(text, selectedVoice) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.voice = selectedVoice; // 设置选择的音色
+            utterance.lang = selectedVoice ? selectedVoice.lang : 'zh-CN'; // 自动匹配语言
+
+            // 启动语音合成
+            speechSynthesis.speak(utterance);
+        }
+
+        // 执行朗读
+        document.getElementById('startButton').addEventListener('click', () =&gt; {
+            const textInput = document.getElementById('textInput').value.trim();
+            const selectedVoiceName = document.getElementById('voiceSelect').value;
+            const voices = speechSynthesis.getVoices();
+            const selectedVoice = voices.find(voice =&gt; voice.name === selectedVoiceName);
+
+            if (!textInput) {
+                alert('请输入文本');
+                return;
+            }
+            if (!selectedVoice) {
+                alert('请选择一个有效语音');
+                return;
+            }
+
+            speak(textInput, selectedVoice);
+        });
+
+        // 停止朗读
+        document.getElementById('stopButton').addEventListener('click', () =&gt; {
+            speechSynthesis.cancel(); // 停止当前语音播放
+        });
+
+        // 复选框变化时重新填充语音列表
+        document.getElementById('filterChinese').addEventListener('change', populateVoiceList);
+
+        // 初始化并填充可用的语音列表
+        populateVoiceList();
+
+        // 在语音列表加载完后，重新填充语音选择框
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+
+</code></pre>
+<h2>python 批量生成</h2>
+<pre class="notranslate"><code class="notranslate">import pyttsx3
+import os
+import sys
+
+def populate_voice_list():
+    engine = pyttsx3.init()
+    voices = engine.getProperty('voices')
+    # 过滤中文语音（假设语言代码包含 'zh'）
+    chinese_voices = [voice for voice in voices if any('zh' in lang.lower() for lang in voice.languages)]
+    return engine, chinese_voices
+
+def generate_audio_from_lines(engine, chinese_voices, text_file):
+    # 检查文本文件是否存在
+    if not os.path.exists(text_file):
+        print(f"文件 {text_file} 不存在。")
+        sys.exit(1)
+
+    # 逐行读取文本文件
+    with open(text_file, 'r', encoding='utf-8') as file:
+        lines = file.readlines()
+
+    if not lines:
+        print("文件中没有文本内容。")
+        sys.exit(1)
+
+    # 检查是否有中文语音
+    if not chinese_voices:
+        print("未找到中文语音。请确保系统已安装中文TTS语音引擎。")
+        sys.exit(1)
+
+    # 用户选择语音（只选择一次，用于所有行）
+    print("可用中文语音：")
+    for idx, voice in enumerate(chinese_voices):
+        print(f"{idx + 1}: {voice.name} (语言: {', '.join(voice.languages)})")
+
+    try:
+        voice_index = int(input("请输入选择的语音编号（用于所有行）：")) - 1
+        if voice_index &lt; 0 or voice_index &gt;= len(chinese_voices):
+            raise ValueError
+        selected_voice = chinese_voices[voice_index]
+    except ValueError:
+        print("无效选择，使用默认语音。")
+        selected_voice = chinese_voices[0]  # 默认使用第一个中文语音
+
+    # 设置所选语音
+    engine.setProperty('voice', selected_voice.id)
+
+    # 为每一行文本生成音频并保存到当前文件夹
+    for i, line in enumerate(lines):
+        text = line.strip()
+        if not text:
+            continue  # 跳过空行
+
+        # 打印当前文本，便于调试
+        print(f"处理第 {i + 1} 行文本: {text}")
+
+        # 为每行文本生成一个唯一的音频文件名
+        output_file = os.path.join(os.getcwd(), f'speech_output_{i + 1}.wav')
+
+        try:
+            print(f"正在队列中添加第 {i + 1} 行音频...")
+            engine.save_to_file(text, output_file)
+        except Exception as e:
+            print(f"添加第 {i + 1} 行音频时出错: {e}")
+            continue
+
+    # 在循环外调用 runAndWait，处理所有队列
+    try:
+        print("开始处理所有音频队列...")
+        engine.runAndWait()
+        print("所有音频生成完成。")
+    except Exception as e:
+        print(f"处理音频队列时出错: {e}")
+
+    # 打印保存的文件（因为现在一次性生成，无法在循环中打印完成）
+    for i, line in enumerate(lines):
+        if line.strip():
+            output_file = os.path.join(os.getcwd(), f'speech_output_{i + 1}.wav')
+            print(f"音频已保存为 {output_file}")
+
+def main():
+    # 指定文本文件路径
+    text_file = r"D:\test\1.txt"
+
+    # 获取可用的语音
+    engine, chinese_voices = populate_voice_list()
+
+    # 为每行文本生成音频
+    generate_audio_from_lines(engine, chinese_voices, text_file)
+
+if __name__ == "__main__":
+    main()
+</code></pre>
+<h2>Python edge-tts</h2>
+<pre class="notranslate"><code class="notranslate">import subprocess
+import sys
+import os
+import asyncio
+import random
+import tempfile
+
+# 安装 edge-tts 库
+def install_edge_tts():
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "edge-tts"])
+        print("✅ edge-tts 安装成功！")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ 安装 edge-tts 失败: {e}")
+
+# 检查是否已安装 edge-tts
+try:
+    import edge_tts
+except ImportError:
+    print("edge-tts 未安装，正在安装...")
+    install_edge_tts()
+else:
+    print("edge-tts 已安装。")
+
+from edge_tts import list_voices, Communicate  # Explicit imports for reliability
+
+# Function to list Chinese voices
+async def list_chinese_voices():
+    voices = await list_voices()
+    chinese_voices = [voice for voice in voices if 'zh' in voice['Locale'].lower()]
+    chinese_voices.sort(key=lambda v: v['ShortName'])  # Optional: sort for consistency
+    return chinese_voices
+
+# Function to convert text to speech with a random voice
+async def text_to_speech_with_random_voice(text, chinese_voices, file_path, line_number):
+    if not text.strip():
+        return None, "Please enter text to convert."
+
+    # Select a random voice
+    random_voice = random.choice(chinese_voices)
+    voice_short_name = random_voice['ShortName']
+    rate_str = "+0%"  # Default rate, can be adjusted as needed
+    pitch_str = "+0Hz"  # Default pitch, can be adjusted as needed
+
+    communicate = Communicate(text, voice_short_name, rate=rate_str, pitch=pitch_str)
+    
+    # Get the directory where the txt file is located
+    directory = os.path.dirname(file_path)
+
+    # Save speech to MP3 file with the voice short name appended to the filename
+    output_filename = f"line_{line_number}_{voice_short_name}.mp3"
+    output_path = os.path.join(directory, output_filename)
+    
+    await communicate.save(output_path)
+
+    return output_path, None
+
+# Function to process the text file and generate audio for each line
+async def process_text_file(file_path, chinese_voices):
+    if not os.path.exists(file_path):
+        print(f"File '{file_path}' does not exist.")
+        return
+
+    with open(file_path, 'r', encoding='utf-8') as file:
+        lines = file.readlines()
+
+    for i, line in enumerate(lines, start=1):
+        line = line.strip()  # Remove leading/trailing spaces
+        if line:
+            audio_path, warning = await text_to_speech_with_random_voice(line, chinese_voices, file_path, i)
+            if warning:
+                print(f"Warning for line {i}: {warning}")
+            else:
+                print(f"Audio for line {i} saved at: {audio_path}")
+        else:
+            print(f"Line {i} is empty, skipping...")
+
+# Main function to generate audio from a text file
+async def main():
+    # Specify the path to the text file
+    file_path = r'd:\51.txt'  # Change this to your file path
+    
+    # List Chinese voices
+    chinese_voices = await list_chinese_voices()
+
+    if not chinese_voices:
+        print("No Chinese voices available.")
+        return
+
+    # Process the text file and generate audio
+    await process_text_file(file_path, chinese_voices)
+
+# Run the main function
+if __name__ == "__main__":
+    asyncio.run(main())
+
+</code></pre></div>
+<div style="font-size:small;margin-top:8px;float:right;">❤️ 转载文章请注明出处，谢谢！❤️</div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://feeday.cn">feeday</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行 "+diffDay+" 天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z', 'copy': 'M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z', 'check': 'M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.disabled=true;
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","tcq233/feeday");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const createClipboardHTML = (codeContent, additionalClasses = '') => `
+        <pre class="notranslate"><code class="notranslate">${codeContent}</code></pre>
+        <div class="clipboard-container position-absolute right-0 top-0 ${additionalClasses}">
+            <clipboard-copy class="ClipboardButton btn m-2 p-0" role="button" style="display: inherit;">
+                <svg height="16" width="16" class="octicon octicon-copy m-2"><path d="${IconList["copy"]}"></path></svg>
+                <svg height="16" width="16" class="octicon octicon-check color-fg-success m-2 d-none"><path d="${IconList["check"]}"></path></svg>
+            </clipboard-copy>
+            <div class="copy-feedback">Copied!</div>
+        </div>
+    `;
+
+    const handleCodeElements = (selector = '') => {
+        document.querySelectorAll(selector).forEach(codeElement => {
+            const codeContent = codeElement.innerHTML;
+            const newStructure = document.createElement('div');
+            newStructure.className = 'snippet-clipboard-content position-relative overflow-auto';
+            newStructure.innerHTML = createClipboardHTML(codeContent);
+
+            const parentElement = codeElement.parentElement;
+            if (selector.includes('highlight')) {
+                parentElement.insertBefore(newStructure, codeElement.nextSibling);
+                parentElement.removeChild(codeElement);
+            } else {
+                parentElement.parentElement.replaceChild(newStructure, parentElement);
+            }
+        });
+    };
+
+    handleCodeElements('pre.notranslate > code.notranslate');
+    handleCodeElements('div.highlight > pre.notranslate');
+
+    let currentFeedback = null;
+    document.querySelectorAll('clipboard-copy').forEach(copyButton => {
+        copyButton.addEventListener('click', () => {
+            const codeContent = copyButton.closest('.snippet-clipboard-content').innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeContent;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            const copyIcon = copyButton.querySelector('.octicon-copy');
+            const checkIcon = copyButton.querySelector('.octicon-check');
+            const copyFeedback = copyButton.nextElementSibling;
+
+            if (currentFeedback && currentFeedback !== copyFeedback) {currentFeedback.style.display = 'none';}
+            currentFeedback = copyFeedback;
+
+            copyIcon.classList.add('d-none');
+            checkIcon.classList.remove('d-none');
+            copyFeedback.style.display = 'block';
+            copyButton.style.borderColor = 'var(--color-success-fg)';
+
+            setTimeout(() => {
+                copyIcon.classList.remove('d-none');
+                checkIcon.classList.add('d-none');
+                copyFeedback.style.display = 'none';
+                copyButton.style.borderColor = '';
+            }, 2000);
+        });
+    });
+});
+
+</script>
+<script src='/gmeek/GmeekTOC.js'></script>
+
+</html>

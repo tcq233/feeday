@@ -1,2 +1,3925 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>feeday</title><link>https://feeday.cn</link><description>BB Work No Money</description><copyright>feeday</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://feeday.cn</link></image><lastBuildDate>Mon, 27 Apr 2026 16:34:07 +0000</lastBuildDate><managingEditor>feeday</managingEditor><ttl>60</ttl><webMaster>feeday</webMaster></channel></rss>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>feeday</title><link>https://feeday.cn</link><description>BB Work No Money</description><copyright>feeday</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://feeday.cn</link></image><lastBuildDate>Tue, 28 Apr 2026 16:38:01 +0000</lastBuildDate><managingEditor>feeday</managingEditor><ttl>60</ttl><webMaster>feeday</webMaster><item><title>ComfyUI 远程访问与调用</title><link>https://feeday.cn/post/ComfyUI%20-yuan-cheng-fang-wen-yu-diao-yong.html</link><description>```
+pip install flask websocket-client requests
+```
+
+```
+import json
+import uuid
+import websocket
+import urllib.request
+import urllib.parse
+import random
+import threading
+import time
+import requests
+import io
+from flask import Flask, request, jsonify, Response
+
+app = Flask(__name__)
+
+# ================= 基础配置 =================
+COMFY_ADDR = '127.0.0.1:8188'
+CLIENT_ID = str(uuid.uuid4())
+gpu_lock = threading.Lock()
+
+def queue_prompt(prompt_workflow):
+    p = {'prompt': prompt_workflow, 'client_id': CLIENT_ID}
+    data = json.dumps(p).encode('utf-8')
+    req = urllib.request.Request(f'http://{COMFY_ADDR}/prompt', data=data)
+    return json.loads(urllib.request.urlopen(req).read())
+
+def upload_image_to_comfyui(file_bytes, filename):
+    '''直接发送字节流到 ComfyUI'''
+    url = f'http://{COMFY_ADDR}/upload/image'
+    files = {'image': (filename, file_bytes)}
+    res = requests.post(url, files=files)
+    return res.json()['name']
+
+# ================= 前端页面路由 =================
+@app.route('/')
+def index():
+    return '''
+    &lt;!DOCTYPE html&gt;
+    &lt;html lang='zh-CN'&gt;
+    &lt;head&gt;
+        &lt;meta charset='UTF-8'&gt;
+        &lt;meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'&gt;
+        &lt;title&gt;Z-Image AI 创作中心&lt;/title&gt;
+        &lt;style&gt;
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; padding: 15px; margin: 0; display: flex; justify-content: center; }
+            .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 600px; box-sizing: border-box; }
+            h2 { text-align: center; margin-top: 0; color: #333; }
+            .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+            .tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; font-weight: bold; color: #888; transition: 0.3s; }
+            .tab.active { color: #007bff; border-bottom: 2px solid #007bff; }
+            .input-group { margin-bottom: 15px; text-align: left; }
+            .input-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #555; }
+            input[type='text'], input[type='file'] { width: 100%; padding: 12px; font-size: 15px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+            button { width: 100%; padding: 14px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; font-weight: bold; }
+            #progressContainer { display: none; margin-top: 15px; }
+            .progress-bar-bg { width: 100%; background-color: #e9ecef; border-radius: 8px; overflow: hidden; height: 12px; }
+            .progress-bar-fill { height: 100%; background-color: #28a745; width: 0%; transition: width 0.2s; }
+            #status { margin: 15px 0 5px 0; font-weight: bold; color: #555; text-align: center; font-size: 14px;}
+            #timeInfo { font-size: 12px; color: #999; text-align: center; margin-bottom: 10px; display: none; }
+            #resultImg { width: 100%; border-radius: 8px; margin-top: 10px; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        &lt;/style&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        &lt;div class='container'&gt;
+            &lt;h2&gt;✨ AI 创作中心&lt;/h2&gt;
+            &lt;div class='tabs'&gt;
+                &lt;div class='tab active' onclick='switchMode('t2i')' id='tab-t2i'&gt;文生图&lt;/div&gt;
+                &lt;div class='tab' onclick='switchMode('i2i')' id='tab-i2i'&gt;图改图&lt;/div&gt;
+            &lt;/div&gt;
+            &lt;form id='genForm'&gt;
+                &lt;div class='input-group' id='file-upload-group' style='display: none;'&gt;
+                    &lt;label&gt;上传参考图：&lt;/label&gt;
+                    &lt;input type='file' id='uploadImage' accept='image/*'&gt;
+                &lt;/div&gt;
+                &lt;div class='input-group'&gt;
+                    &lt;label id='prompt-label'&gt;画面描述：&lt;/label&gt;
+                    &lt;input type='text' id='prompt' value='a beautiful girl, cinematic lighting, 8k'&gt;
+                &lt;/div&gt;
+                &lt;button type='button' id='genBtn' onclick='generate()'&gt;立即生成&lt;/button&gt;
+            &lt;/form&gt;
+            &lt;p id='status'&gt;&lt;/p&gt;
+            &lt;div id='timeInfo'&gt;&lt;/div&gt;
+            &lt;div id='progressContainer'&gt;
+                &lt;div class='progress-bar-bg'&gt;&lt;div class='progress-bar-fill' id='progressFill'&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;/div&gt;
+            &lt;img id='resultImg' src=''&gt;
+        &lt;/div&gt;
+
+        &lt;script&gt;
+            let currentMode = 't2i';
+            function switchMode(mode) {
+                currentMode = mode;
+                document.getElementById('tab-t2i').className = mode === 't2i' ? 'tab active' : 'tab';
+                document.getElementById('tab-i2i').className = mode === 'i2i' ? 'tab active' : 'tab';
+                document.getElementById('file-upload-group').style.display = mode === 'i2i' ? 'block' : 'none';
+                document.getElementById('prompt').value = mode === 'i2i' ? '猫换成狗' : 'a beautiful girl, cinematic lighting, 8k';
+            }
+
+            async function generate() {
+                const btn = document.getElementById('genBtn');
+                const status = document.getElementById('status');
+                const timeInfo = document.getElementById('timeInfo');
+                const img = document.getElementById('resultImg');
+                const progressFill = document.getElementById('progressFill');
+                const progressContainer = document.getElementById('progressContainer');
+                
+                btn.disabled = true;
+                status.innerText = '🚀 正在连接 AI 服务器...';
+                timeInfo.style.display = 'none';
+                img.style.display = 'none';
+                progressContainer.style.display = 'block';
+                progressFill.style.width = '0%';
+
+                const formData = new FormData();
+                formData.append('mode', currentMode);
+                formData.append('prompt', document.getElementById('prompt').value);
+                if(currentMode === 'i2i') formData.append('image', document.getElementById('uploadImage').files[0]);
+
+                try {
+                    const response = await fetch('/generate', { method: 'POST', body: formData });
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let buffer = '';
+                    let startTime = 0;
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        let lines = buffer.split('\\n');
+                        buffer = lines.pop(); 
+                        
+                        for (let line of lines) {
+                            if (!line.trim()) continue;
+                            const data = JSON.parse(line);
+                            if (data.status === 'progress') {
+                                if (startTime === 0) startTime = Date.now();
+                                let percent = Math.round((data.value / data.max) * 100);
+                                progressFill.style.width = percent + '%';
+                                status.innerText = `🔄 正在绘制: ${percent}%`;
+                            } else if (data.status === 'success') {
+                                status.innerText = '🎉 生成完毕';
+                                timeInfo.innerText = `模型计算耗时: ${data.elapsed_time}s`;
+                                timeInfo.style.display = 'block';
+                                img.src = data.image_url + '?t=' + new Date().getTime(); 
+                                img.style.display = 'block';
+                                progressContainer.style.display = 'none';
+                            }
+                        }
+                    }
+                } catch (e) { status.innerText = '❌ 出错啦'; }
+                finally { btn.disabled = false; }
+            }
+        &lt;/script&gt;
+    &lt;/body&gt;
+    &lt;/html&gt;
+# ====3个 '''
+
+@app.route('/api/image/&lt;filename&gt;')
+def get_image(filename):
+    url = f'http://{COMFY_ADDR}/view?filename={urllib.parse.quote(filename)}'
+    try:
+        with urllib.request.urlopen(url) as response:
+            return Response(response.read(), mimetype='image/png')
+    except: return 'Image Not Found', 404
+
+# ================= 后端逻辑优化 =================
+@app.route('/generate', methods=['POST'])
+def generate():
+    # 【修复核心】在主函数中预先提取所有 request 数据
+    mode = request.form.get('mode', 't2i')
+    prompt = request.form.get('prompt', '')
+    image_bytes = None
+    image_filename = None
+
+    if mode == 'i2i' and 'image' in request.files:
+        file = request.files['image']
+        image_bytes = file.read() # 将文件读入内存
+        image_filename = file.filename
+
+    def stream_generation(m, p, img_b, img_n):
+        with gpu_lock:
+            try:
+                start_clock = time.time()
+                # --- 工作流配置 ---
+                if m == 'i2i':
+                    comfy_name = upload_image_to_comfyui(img_b, img_n)
+                    with open('FireRed-Image-Edit.json', 'r', encoding='utf-8') as f:
+                        wf = json.load(f)
+                    wf['41']['inputs']['image'] = comfy_name
+                    wf['68']['inputs']['prompt'] = p
+                    wf['65']['inputs']['seed'] = random.randint(10**10, 10**15)
+                    node_id = '9'
+                else:
+                    with open('Z-Image-GGUF.json', 'r', encoding='utf-8') as f:
+                        wf = json.load(f)
+                    wf['8']['inputs']['text'] = p
+                    wf['10']['inputs']['seed'] = random.randint(10**10, 10**15)
+                    node_id = '18'
+
+                # --- 任务推送 ---
+                ws = websocket.WebSocket()
+                ws.connect(f'ws://{COMFY_ADDR}/ws?clientId={CLIENT_ID}')
+                prompt_id = queue_prompt(wf)['prompt_id']
+
+                while True:
+                    out = ws.recv()
+                    if isinstance(out, str):
+                        msg = json.loads(out)
+                        if msg['type'] == 'progress':
+                            yield json.dumps({'status': 'progress', 'value': msg['data']['value'], 'max': msg['data']['max']}) + '\n'
+                        elif msg['type'] == 'executing' and msg['data']['node'] is None and msg['data']['prompt_id'] == prompt_id:
+                            break
+                ws.close()
+
+                # --- 耗时计算与结果 ---
+                elapsed = round(time.time() - start_clock, 2)
+                with urllib.request.urlopen(f'http://{COMFY_ADDR}/history/{prompt_id}') as r:
+                    hist = json.loads(r.read())
+                
+                fname = hist[prompt_id]['outputs'][node_id]['images'][0]['filename']
+                yield json.dumps({'status': 'success', 'image_url': f'/api/image/{fname}', 'elapsed_time': elapsed}) + '\n'
+                
+            except Exception as e:
+                yield json.dumps({'status': 'error', 'message': str(e)}) + '\n'
+
+    # 将提取出的数据传给生成器
+    return Response(stream_generation(mode, prompt, image_bytes, image_filename), mimetype='application/x-ndjson')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+```
+
+。</description><guid isPermaLink="true">https://feeday.cn/post/ComfyUI%20-yuan-cheng-fang-wen-yu-diao-yong.html</guid><pubDate>Mon, 13 Apr 2026 14:30:12 +0000</pubDate></item><item><title>页面跳转代码</title><link>https://feeday.cn/post/ye-mian-tiao-zhuan-dai-ma.html</link><description>### 纯 HTML 最快：Meta Refresh 标签
+如果由于某种原因（比如有些平台屏蔽了 JS 脚本）只能使用纯 HTML，可以使用 &lt;meta&gt; 标签。</description><guid isPermaLink="true">https://feeday.cn/post/ye-mian-tiao-zhuan-dai-ma.html</guid><pubDate>Sun, 12 Apr 2026 08:41:26 +0000</pubDate></item><item><title>termux 部署 ubuntu</title><link>https://feeday.cn/post/termux%20-bu-shu-%20ubuntu.html</link><description>- https://github.com/termux/termux-app
+- https://github.com/mayukh4/linux-android
+- https://github.com/termux/termux-x11/releases
+- https://f-droid.org/en/packages/com.termux/
+
+## 常用命令
+
+
+```
+termux-wake-lock 
+termux-setup-storage #授予手机存储权限
+
+curl -O https://raw.githubusercontent.com/mayukh4/linux-anroid/main/termux-linux-setup.sh
+chmod +x termux-linux-setup.sh
+bash termux-linux-setup.sh
+
+bash ~/start-linux.sh
+bash ~/stop-linux.sh
+
+
+sshd
+passwd
+
+ip addr show wlan0 | grep 'inet '
+
+ssh your-termux-username@192.168.1.42 -p 8022
+
+pkg install wget
+pkg install iproute2
+pkg install openssh -y
+passwd
+ip addr
+
+termux-change-repo #切换源
+pkg update #更新源
+proot-distro install ubuntu #安装系统
+proot-distro login ubuntu #进入系统
+```
+
+## 系统命令
+```
+apt update &amp;&amp; apt install openssh-server nano -y #更新系统软件源列表
+apt install python3 python3-pip y #Python 及包管理工具
+```
+
+## 网盘备份
+
+- https://pan.quark.cn/s/f005ed0656b2
+- Null_Keyboard.apk 
+- termux_1022.apk。</description><guid isPermaLink="true">https://feeday.cn/post/termux%20-bu-shu-%20ubuntu.html</guid><pubDate>Sun, 05 Apr 2026 06:17:01 +0000</pubDate></item><item><title>HF-Mirror 镜像下载</title><link>https://feeday.cn/post/HF-Mirror%20-jing-xiang-xia-zai.html</link><description>## 安装依赖
+
+```
+pip install -U huggingface_hub
+```
+
+- Linux/macOS (临时生效):
+```
+export HF_ENDPOINT=https://hf-mirror.com
+```
+- Windows PowerShell (临时生效):
+```
+$env:HF_ENDPOINT = 'https://hf-mirror.com'
+```
+
+
+## 下载模型文件
+```
+import os
+from huggingface_hub import snapshot_download
+
+# 1. 设置环境变量，指向国内镜像站
+os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+
+# 2. 定义模型 ID 和保存路径
+model_id = 'HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive'
+local_dir = './Qwen3.5-9B-Uncensored'
+
+print(f'开始从镜像站下载模型: {model_id} ...')
+
+# 3. 执行下载
+snapshot_download(
+    repo_id=model_id,
+    local_dir=local_dir,
+    local_dir_use_symlinks=False, # 建议设为 False，直接下载真实文件而非软链接
+    ignore_patterns=['*.msgpack', '*.h5', '*.ot'], # 可选：忽略不需要的格式（如 Pytorch 用户忽略 Rust/TensorFlow 文件）
+    resume_download=True
+)
+
+print('下载完成！模型存放在:', local_dir)
+```
+
+## 下载单个模型文件
+```
+import os
+from huggingface_hub import hf_hub_download
+
+# 1. 设置环境变量，强制走国内镜像站
+os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+
+# 2. 定义模型 ID 和保存路径
+model_id = 'HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive'
+local_dir = 'E:/Models/Qwen3.5-9B-Uncensored'
+
+# 3. 精确指定要下载的文件（单文件模型 + 视觉编码器）
+files_to_download = [
+    'Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q6_K.gguf',
+    'mmproj-Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-BF16.gguf'
+]
+
+for filename in files_to_download:
+    print(f'\n开始从镜像站下载: {filename} ...')
+    try:
+        # 新版 huggingface_hub 默认自带断点续传和非软链接特性
+        file_path = hf_hub_download(
+            repo_id=model_id,
+            filename=filename,
+            local_dir=local_dir
+        )
+        print(f'✅ 下载成功！文件已存放在: {file_path}')
+    except Exception as e:
+        print(f'❌ 下载报错: {e}')
+```。</description><guid isPermaLink="true">https://feeday.cn/post/HF-Mirror%20-jing-xiang-xia-zai.html</guid><pubDate>Sun, 22 Mar 2026 12:27:07 +0000</pubDate></item><item><title>删除重复图像</title><link>https://feeday.cn/post/shan-chu-zhong-fu-tu-xiang.html</link><description>删除重复图像-GPU
+```
+import os
+import sys
+import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# ========== 自动安装依赖（阿里源） ==========
+def auto_install(pkg):
+    try:
+        __import__(pkg)
+    except ImportError:
+        print(f'📦 未安装 {pkg}，正在安装（阿里源）...')
+        subprocess.check_call([
+            sys.executable, '-m', 'pip', 'install', pkg,
+            '-i', 'https://mirrors.aliyun.com/pypi/simple'
+        ])
+
+auto_install('PIL')              # pillow
+auto_install('imagehash')
+auto_install('opencv-python')
+auto_install('numpy')
+auto_install('scikit-image')
+
+
+import cv2
+import numpy as np
+from PIL import Image
+import imagehash
+from skimage.metrics import structural_similarity as ssim
+
+
+# ============ 配置 ============
+FOLDER = r'C:\Users\Puck\Desktop\xz\cp'
+EXTS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}
+
+PHASH_THRESHOLD = 5     # phash 最大差距
+DHASH_THRESHOLD = 5     # dhash 最大差距
+SSIM_THRESHOLD = 0.95   # fast-ssim 最终确认阈值
+
+THREADS = 8
+# =============================
+
+
+def load_image(path):
+    '''读图（OpenCV 格式 + Original Size）'''
+    img = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_COLOR)
+    return img
+
+
+def fast_ssim(img1, img2):
+    '''缩小到 64×64，再计算 SSIM（高速 + 不误判）'''
+    gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+
+    h = min(gray1.shape[0], gray2.shape[0])
+    w = min(gray1.shape[1], gray2.shape[1])
+
+    g1 = cv2.resize(gray1, (64, 64))
+    g2 = cv2.resize(gray2, (64, 64))
+
+    value, _ = ssim(g1, g2, full=True)
+    return value
+
+
+def calc_hashes(path):
+    '''计算 pHash + dHash'''
+    try:
+        img = Image.open(path).convert('RGB')
+        ph = imagehash.phash(img)
+        dh = imagehash.dhash(img)
+        return (path, ph, dh)
+    except:
+        return (path, None, None)
+
+
+def main():
+    print('📌 扫描文件中...')
+
+    file_list = []
+    for root, _, files in os.walk(FOLDER):
+        for f in files:
+            if os.path.splitext(f)[1].lower() in EXTS:
+                file_list.append(os.path.join(root, f))
+
+    print(f'📸 找到 {len(file_list)} 张图片，开始多线程 hash...')
+
+    # ========== 多线程 hash ==========
+    hashes = []
+    with ThreadPoolExecutor(max_workers=THREADS) as exe:
+        futures = [exe.submit(calc_hashes, p) for p in file_list]
+        for f in as_completed(futures):
+            hashes.append(f.result())
+
+    # ========== 加载 OpenCV 图像 &amp; 分辨率 ==========
+    print('📷 加载图像用于 SSIM...')
+
+    imgs = {}
+    resolutions = {}
+
+    for path, _, _ in hashes:
+        img = load_image(path)
+        if img is None:
+            continue
+        imgs[path] = img
+        h, w = img.shape[:2]
+        resolutions[path] = w * h
+
+    print('🚀 开始严格去重（三重判定，不误删）...')
+
+    delete = set()
+    kept = []
+
+    n = len(hashes)
+
+    for i in range(n):
+        p1, ph1, dh1 = hashes[i]
+        if p1 in delete:
+            continue
+
+        kept.append(p1)
+
+        for j in range(i + 1, n):
+            p2, ph2, dh2 = hashes[j]
+            if p2 in delete:
+                continue
+
+            # --- 1) pHash 粗筛 ---
+            if ph1 - ph2 &gt; PHASH_THRESHOLD:
+                continue
+
+            # --- 2) dHash 粗筛 ---
+            if dh1 - dh2 &gt; DHASH_THRESHOLD:
+                continue
+
+            # --- 3) fast SSIM 最终确认 ---
+            s = fast_ssim(imgs[p1], imgs[p2])
+
+            if s &gt;= SSIM_THRESHOLD:
+                # 保留分辨率最高
+                if resolutions[p2] &gt; resolutions[p1]:
+                    print(f'🔄 替换保留 → {p2}（更高清）')
+                    delete.add(p1)
+                    kept[-1] = p2
+                    p1 = p2
+                else:
+                    print(f'🗑 删除：{p2}（SSIM={s:.3f}）')
+                    delete.add(p2)
+
+    print(f'\n🗑 删除 {len(delete)} 张重复图片...')
+
+    # 最终删除
+    for p in delete:
+        try:
+            os.remove(p)
+        except:
+            pass
+
+    print('✨ 完成！')
+
+
+if __name__ == '__main__':
+    main()
+
+```。</description><guid isPermaLink="true">https://feeday.cn/post/shan-chu-zhong-fu-tu-xiang.html</guid><pubDate>Mon, 24 Nov 2025 13:48:48 +0000</pubDate></item><item><title>配置文件</title><link>https://feeday.cn/post/pei-zhi-wen-jian.html</link><description>```
+{
+  'title': 'feeday',
+  'subTitle': 'BB Work No Money',
+  'homeUrl': 'https://feeday.cn/feeday',
+  'avatarUrl': 'https://github.githubassets.com/favicons/favicon.svg',
+  'bottomText': '❤️ 转载文章请注明出处，谢谢！❤️',
+  'script': '&lt;script src='/gmeek/GmeekTOC.js'&gt;&lt;/script&gt;',
+  'allHead': '&lt;script src='/gmeek/GmeekVercount.js'&gt;&lt;/script&gt;',
+  'head': '&lt;script async src=\'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1964437526797765\' crossorigin=\'anonymous\'&gt;&lt;/script&gt;\n&lt;!-- blog119 --&gt;\n&lt;ins class=\'adsbygoogle\' style=\'display:inline-block;width:728px;height:90px\' data-ad-client=\'ca-pub-1964437526797765\' data-ad-slot=\'6408697538\'&gt;&lt;/ins&gt;\n&lt;script&gt;\n     (adsbygoogle = window.adsbygoogle || []).push({});\n&lt;/script&gt;',
+  'iconList': {
+    'add': 'M8 1C8.4 1 8.7 1.3 8.7 1.7V7.3H14.3C14.7 7.3 15 7.6 15 8C15 8.4 14.7 8.7 14.3 8.7H8.7V14.3C8.7 14.7 8.4 15 8 15C7.6 15 7.3 14.7 7.3 14.3V8.7H1.7C1.3 8.7 1 8.4 1 8C1 7.6 1.3 7.3 1.7 7.3H7.3V1.7C7.3 1.3 7.6 1 8 1Z'
+  },
+  'exlink': {
+    'add': 'https://github.com/tcq233/feeday/issues/new'
+  },
+
+  'GMEEK_VERSION': 'last'
+}
+```。</description><guid isPermaLink="true">https://feeday.cn/post/pei-zhi-wen-jian.html</guid><pubDate>Sat, 22 Nov 2025 19:10:41 +0000</pubDate></item><item><title>windows-开始菜单目录</title><link>https://feeday.cn/post/windows--kai-shi-cai-dan-mu-lu.html</link><description>删除开始菜单应用列表，找对应文件夹删除。</description><guid isPermaLink="true">https://feeday.cn/post/windows--kai-shi-cai-dan-mu-lu.html</guid><pubDate>Sat, 15 Nov 2025 07:21:39 +0000</pubDate></item><item><title>imgur镜像站测试</title><link>https://feeday.cn/post/imgur-jing-xiang-zhan-ce-shi.html</link><description>
+检查 imgur 图片在多个镜像站是否可用
+
+- https://shiquda.link/load-imgur-images/
+```
+import requests
+import time
+
+# 测试超时（秒）
+TIMEOUT = 10
+
+# 测试的镜像站模式
+MIRRORS = {
+    'StackImgur':      'https://i.stack.imgur.com/{id}',
+    'ImgurPics':       'https://imgur.pics/{id}',
+    'ImgVue':          'https://imgvue.com/images/{id}',
+    'RisuAI':          'https://risuai.com/imgur/{id}',  # 备选
+}
+
+def check_url(url):
+    '''HEAD 方式检查 URL 是否可访问'''
+    try:
+        r = requests.head(url, timeout=TIMEOUT)
+        return r.status_code in (200, 301, 302)
+    except:
+        return False
+
+
+def test_imgur_id(img_id, ext='jpg'):
+    '''检测单个 imgur ID 的可用镜像'''
+    print(f'\n===== 测试 ID: {img_id} =====')
+
+    results = {}
+
+    # 拼接文件名
+    full = f'{img_id}.{ext}'
+
+    for name, pattern in MIRRORS.items():
+        url = pattern.format(id=full)
+
+        ok = check_url(url)
+        results[name] = ok
+
+        status = '✔ 可用' if ok else '✘ 不可用'
+        print(f'{name:12s} → {status}  ({url})')
+
+        time.sleep(0.2)
+
+    return results
+
+
+if __name__ == '__main__':
+    # 示例 ID，可换成真实 ID
+    test_list = [
+        'qHxM2',  # 你提供的
+        '9xndJ',
+        'ciycE',
+        'AFFHn',
+    ]
+
+    for img_id in test_list:
+        test_imgur_id(img_id)
+```
+
+## 数据集下载测试
+```
+# -*- coding: utf-8 -*-
+'''
+逐行下载 ORIGINAL 和 PS 图片，并按指定格式重命名：
+Original: {id}_{imgurID}_original.ext
+PS:       {originalID}_{id_variant}_{imgurID}_ps.ext
+'''
+
+import os
+import csv
+import requests
+import time
+
+# ===== 代理域名 =====
+PROXY_DOMAIN = 'https://img.noobzone.ru/getimg.php?url='
+
+def proxy_url(url):
+    return f'{PROXY_DOMAIN}{url}'
+
+# ===== 输入文件路径 =====
+ORIGINAL_TSV = '/home/data/originals.tsv'
+PS_TSV = '/home/data/photoshops.tsv'
+
+# ===== 输出目录 =====
+SAVE_ROOT = '/home/data/output'
+ORIG_DIR = os.path.join(SAVE_ROOT, 'original')
+PS_DIR = os.path.join(SAVE_ROOT, 'photoshop')
+FAILED_LOG = os.path.join(SAVE_ROOT, 'failed.txt')
+
+os.makedirs(ORIG_DIR, exist_ok=True)
+os.makedirs(PS_DIR, exist_ok=True)
+
+def extract_imgur_id(url: str):
+    '''从 imgur 链接提取图片 ID'''
+    return url.split('/')[-1].split('.')[0]
+
+
+def download(line_no, url, save_path, retry=3):
+    '''下载函数（带代理 + 打印行号）'''
+    for attempt in range(1, retry + 1):
+        try:
+            purl = proxy_url(url)
+            print(f'\n==== 行 {line_no} (尝试 {attempt}/{retry}) ====')
+            print(f'原始 URL: {url}')
+            print(f'代理 URL: {purl}')
+
+            r = requests.get(purl, timeout=20, stream=True)
+            print(f'状态码: {r.status_code}')
+
+            if r.status_code == 200:
+                with open(save_path, 'wb') as f:
+                    for chunk in r.iter_content(8192):
+                        f.write(chunk)
+                print(f'✔ 成功 → {save_path}')
+                return True
+            else:
+                print(f'❌ 错误状态码 {r.status_code}')
+                err = f'{url}\tstatus {r.status_code}\n'
+
+        except Exception as e:
+            print(f'💥 出错: {e}')
+            err = f'{url}\terror {e}\n'
+
+        time.sleep(1)
+
+    with open(FAILED_LOG, 'a', encoding='utf-8') as f:
+        f.write(err)
+
+    print('❌ 三次尝试失败！')
+    return False
+
+
+# ========== 逐行交替处理 ==========
+
+def read_tsv(path):
+    data = []
+    with open(path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        for row in reader:
+            data.append(row)
+    return data
+
+
+print('📄 正在读取 TSV…')
+orig_rows = read_tsv(ORIGINAL_TSV)
+ps_rows = read_tsv(PS_TSV)
+
+max_len = max(len(orig_rows), len(ps_rows))
+
+print(f'原图 {len(orig_rows)} 行，PS {len(ps_rows)} 行')
+print('\n🚀 开始逐行下载…')
+
+for i in range(max_len):
+    line_no = i + 1
+
+    # ===== ORIGINAL =====
+    if i &lt; len(orig_rows):
+        row = orig_rows[i]
+        id_or = row.get('id')
+        url_or = row.get('url')
+        ext_or = (row.get('end') or 'jpg').lstrip('.')
+
+        imgurID_or = extract_imgur_id(url_or)
+
+        filename_or = f'{id_or}_{imgurID_or}_original.{ext_or}'
+        save_or = os.path.join(ORIG_DIR, filename_or)
+
+        download(line_no, url_or, save_or)
+
+    # ===== PS =====
+    if i &lt; len(ps_rows):
+        row = ps_rows[i]
+        id_variant = row.get('id_variant') or row.get('id')
+        id_original = row.get('original')
+        url_ps = row.get('url')
+        ext_ps = (row.get('end') or 'jpg').lstrip('.')
+
+        imgurID_ps = extract_imgur_id(url_ps)
+
+        # 命名格式：
+        # 10092l_c69axf4_0_xIJ4z_ps.png
+        filename_ps = f'{id_original}_{id_variant}_{imgurID_ps}_ps.{ext_ps}'
+        save_ps = os.path.join(PS_DIR, filename_ps)
+
+        download(line_no, url_ps, save_ps)
+
+print('\n🎉 完成！')
+print(f'📁 输出目录: {SAVE_ROOT}')
+print(f'📝 失败日志: {FAILED_LOG}')
+```。</description><guid isPermaLink="true">https://feeday.cn/post/imgur-jing-xiang-zhan-ce-shi.html</guid><pubDate>Sat, 15 Nov 2025 06:20:28 +0000</pubDate></item><item><title>Jupyter</title><link>https://feeday.cn/post/Jupyter.html</link><description>在 VS Code 中安装和使用 ipynb（Jupyter Notebook） 很简单，只需要安装两个官方扩展即可。</description><guid isPermaLink="true">https://feeday.cn/post/Jupyter.html</guid><pubDate>Sat, 15 Nov 2025 05:30:12 +0000</pubDate></item><item><title>Pico-Banana-400K</title><link>https://feeday.cn/post/Pico-Banana-400K.html</link><description>苹果发布的香蕉图像编辑数据集
+- [https://github.com/apple/pico-banana-400k](https://github.com/apple/pico-banana-400k)
+
+逐行读取 JSONL 文件，下载 open_image 和 output_image。</description><guid isPermaLink="true">https://feeday.cn/post/Pico-Banana-400K.html</guid><pubDate>Sun, 09 Nov 2025 15:11:10 +0000</pubDate></item><item><title>鼠标自动上滑脚本</title><link>https://feeday.cn/post/shu-biao-zi-dong-shang-hua-jiao-ben.html</link><description>
+功能：1. 实时显示鼠标坐标
+2. 按 Enter 锁定坐标并开始循环执行：
+ → 移动到坐标 → 按住左键 → 光标上移30像素 + 滚轮上滑10次 → 松开左键
+3. 按 Esc 随时停止退出
+
+
+```
+import time
+import sys
+import subprocess
+
+# ===== 自动安装依赖 =====
+required_packages = ['pyautogui', 'pynput']
+for pkg in required_packages:
+    try:
+        __import__(pkg)
+    except ImportError:
+        print(f'📦 未找到 {pkg}，正在安装...')
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', pkg, '-i', 'https://pypi.tuna.tsinghua.edu.cn/simple'])
+
+import pyautogui
+from pynput import keyboard
+from pynput.mouse import Controller as MouseController, Button
+
+# ===== 配置参数 =====
+SCROLL_TIMES = 10       # 滚轮上滑次数
+SCROLL_STEP = -1        # 每次滚轮滚动幅度（负数 = 内容往上）
+DRAG_OFFSET = 80        # 鼠标按住后上移的像素
+INTERVAL = 0.1          # 每轮循环间隔时间
+MOVE_DURATION = 0.1     # 鼠标移动动画时长
+
+mouse = MouseController()
+running = False
+stop_flag = False
+
+
+# ===== 键盘监听 =====
+def on_press(key):
+    global running, stop_flag
+    try:
+        if key == keyboard.Key.enter:
+            if not running:
+                print('\n🚀 开始执行循环（按 Esc 停止）')
+                running = True
+            else:
+                print('⚙ 已在运行中')
+        elif key == keyboard.Key.esc:
+            print('\n⏹ 检测到 Esc，准备退出...')
+            stop_flag = True
+            return False
+    except Exception:
+        pass
+
+
+# ===== 实时显示鼠标坐标 =====
+def show_mouse_position():
+    print('📍 实时坐标显示中...（按 Enter 锁定坐标并开始，Esc 退出）')
+    while not running and not stop_flag:
+        x, y = pyautogui.position()
+        print(f'\r🖱️ 当前坐标: ({x}, {y})', end='', flush=True)
+        time.sleep(0.1)
+
+
+# ===== 主执行逻辑 =====
+def perform_loop(x, y):
+    global stop_flag
+    i = 0
+    while not stop_flag:
+        i += 1
+
+        # 移动到指定坐标
+        pyautogui.moveTo(x, y, duration=MOVE_DURATION)
+        time.sleep(0.05)
+
+        # 按住左键
+        mouse.press(Button.left)
+        time.sleep(0.05)
+
+        # 光标上移指定像素（模拟拖拽）
+        pyautogui.moveTo(x, y - DRAG_OFFSET, duration=0.15)
+
+        # 同时滚轮上滑若干次
+        for _ in range(SCROLL_TIMES):
+            mouse.scroll(0, SCROLL_STEP)
+            time.sleep(0.05)
+
+        # 松开左键
+        mouse.release(Button.left)
+
+        print(f'\r✅ 第 {i} 次拖拽+上滑完成 ({x},{y-DRAG_OFFSET})', end='', flush=True)
+        time.sleep(INTERVAL)
+
+
+# ===== 主程序入口 =====
+if __name__ == '__main__':
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+
+    show_mouse_position()
+
+    if stop_flag:
+        print('\n👋 已退出。</description><guid isPermaLink="true">https://feeday.cn/post/shu-biao-zi-dong-shang-hua-jiao-ben.html</guid><pubDate>Sun, 09 Nov 2025 13:01:33 +0000</pubDate></item><item><title>GIthub同步项目到服务器脚本</title><link>https://feeday.cn/post/GIthub-tong-bu-xiang-mu-dao-fu-wu-qi-jiao-ben.html</link><description>同步代码项目脚本
+```
+#!/bin/bash
+# ==========================================
+# auto_git_update.sh
+# 每天自动更新多个 Git 仓库到指定目录
+# 作者: ChatGPT
+# ==========================================
+
+# ===== 基本配置 =====
+BASE_DIR='/home/git'          # 所有仓库存放的目录
+LOG_FILE='/home/git_update.log'
+
+# ===== 仓库列表（可添加多个） =====
+GIT_URLS=(
+  'https://github.com/tcq20256/feeday.git'
+  'https://github.com/tcq20256/tcq20256.github.io.git'
+)
+
+# ===== 函数：更新或克隆仓库 =====
+update_repo() {
+  local GIT_URL='$1'
+  local REPO_NAME=$(basename '$GIT_URL' .git)
+  local REPO_DIR='${BASE_DIR}/${REPO_NAME}'
+
+  echo '----------------------------------------' | tee -a '$LOG_FILE'
+  echo '🕒 $(date '+%F %T') 开始处理仓库：$REPO_NAME' | tee -a '$LOG_FILE'
+
+  # 确保目录存在
+  mkdir -p '$BASE_DIR'
+
+  # 克隆或更新
+  if [ ! -d '$REPO_DIR/.git' ]; then
+    echo '📦 第一次 clone 仓库：$GIT_URL' | tee -a '$LOG_FILE'
+    git clone '$GIT_URL' '$REPO_DIR' &gt;&gt; '$LOG_FILE' 2&gt;&amp;1
+  else
+    echo '🔄 更新仓库：$REPO_NAME' | tee -a '$LOG_FILE'
+    cd '$REPO_DIR' || { echo '❌ 无法进入目录：$REPO_DIR' | tee -a '$LOG_FILE'; return; }
+    git reset --hard HEAD &gt;&gt; '$LOG_FILE' 2&gt;&amp;1
+    git pull &gt;&gt; '$LOG_FILE' 2&gt;&amp;1
+  fi
+
+  if [ $? -eq 0 ]; then
+    echo '✅ 完成更新：$REPO_NAME' | tee -a '$LOG_FILE'
+  else
+    echo '⚠️ 更新失败：$REPO_NAME' | tee -a '$LOG_FILE'
+  fi
+}
+
+# ===== 主逻辑：循环处理每个仓库 =====
+echo '========================================' | tee -a '$LOG_FILE'
+echo '🚀 启动自动 Git 更新任务 $(date '+%F %T')' | tee -a '$LOG_FILE'
+
+for url in '${GIT_URLS[@]}'; do
+  update_repo '$url'
+done
+
+echo '✅ 所有仓库处理完毕 $(date '+%F %T')' | tee -a '$LOG_FILE'
+echo '========================================' | tee -a '$LOG_FILE'
+```。</description><guid isPermaLink="true">https://feeday.cn/post/GIthub-tong-bu-xiang-mu-dao-fu-wu-qi-jiao-ben.html</guid><pubDate>Sun, 09 Nov 2025 07:19:50 +0000</pubDate></item><item><title>install_centos7.6_conda.sh</title><link>https://feeday.cn/post/install_centos7.6_conda.sh.html</link><description>Centos7.6老版本安装conda
+
+## 安装脚本
+```
+#!/bin/bash
+# ==========================================
+# install_conda_centos7.sh
+# 适用于 CentOS 7 的 Miniconda 自动安装脚本（兼容 glibc 2.17）
+# 作者: ChatGPT
+# ==========================================
+
+set -e
+
+INSTALL_DIR='/root/miniconda3'
+CONDA_SCRIPT='Miniconda3-py38_23.3.1-0-Linux-x86_64.sh'
+DOWNLOAD_URL='https://repo.anaconda.com/miniconda/${CONDA_SCRIPT}'
+
+echo '🐧 检测系统版本...'
+if grep -q 'release 7' /etc/centos-release 2&gt;/dev/null; then
+    echo '✅ 检测到 CentOS 7，使用兼容版 Miniconda (Python 3.8)'
+else
+    echo '⚠️ 未检测到 CentOS 7，将使用最新版 Miniconda 安装包'
+    CONDA_SCRIPT='Miniconda3-latest-Linux-x86_64.sh'
+    DOWNLOAD_URL='https://repo.anaconda.com/miniconda/${CONDA_SCRIPT}'
+fi
+
+echo '🐍 检查 Conda 是否已安装...'
+if command -v conda &gt;/dev/null 2&gt;&amp;1; then
+    echo '✅ Conda 已安装，版本：$(conda -V)'
+    exit 0
+fi
+
+echo '🌍 正在下载 Miniconda 安装脚本...'
+cd /opt
+curl -LO '$DOWNLOAD_URL'
+
+echo '📦 安装 Miniconda 到: $INSTALL_DIR ...'
+bash '$CONDA_SCRIPT' -b -p '$INSTALL_DIR'
+
+# 激活 conda
+source '$INSTALL_DIR/bin/activate'
+
+# 配置环境变量
+if ! grep -q 'miniconda3/bin/activate' ~/.bashrc; then
+    echo 'source $INSTALL_DIR/bin/activate' &gt;&gt; ~/.bashrc
+    echo '✅ 已将 Conda 自动加载配置写入 ~/.bashrc'
+fi
+
+# 设置清华镜像源
+echo '🧭 配置 TUNA 清华镜像源...'
+conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free
+conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
+conda config --set show_channel_urls yes
+
+# 验证安装
+echo '🔍 验证 Conda 安装...'
+conda -V
+python -V
+
+echo '🎉 安装完成！请执行以下命令激活环境：'
+echo '👉 source ~/.bashrc'
+echo '👉 conda create -n py310 python=3.10 -y'
+echo '👉 conda activate py310'
+echo 'source /root/miniconda3/bin/activate'
+```
+
+## 创建激活环境
+```
+source /root/miniconda3/bin/activate
+conda create -n py310 python=3.10 -y
+conda activate py310
+```。</description><guid isPermaLink="true">https://feeday.cn/post/install_centos7.6_conda.sh.html</guid><pubDate>Sun, 09 Nov 2025 06:32:05 +0000</pubDate></item><item><title>视频增加到10秒</title><link>https://feeday.cn/post/shi-pin-zeng-jia-dao-10-miao.html</link><description>递归扫描 D:\test\视频 ，将不足10秒的视频复制拼接到超过10秒
+生成后直接覆盖原视频，文件名不变（原文件自动备份为 .bak）
+
+```
+import os
+import sys
+import math
+import shutil
+import subprocess
+
+# ===== 自动安装依赖 =====
+required_packages = ['moviepy', 'tqdm']
+for pkg in required_packages:
+    try:
+        __import__(pkg.split('-')[0])
+    except ImportError:
+        print(f'📦 未找到 {pkg}，正在自动安装...')
+        subprocess.check_call([
+            sys.executable, '-m', 'pip', 'install', pkg, '-i', 'https://pypi.tuna.tsinghua.edu.cn/simple'
+        ])
+
+# ===== 正式逻辑 =====
+from moviepy.editor import VideoFileClip, concatenate_videoclips
+from tqdm import tqdm
+
+# 固定扫描目录
+ROOT_DIR = r'D:\test'
+MIN_DURATION = 10  # 秒
+EXTS = ('.mp4', '.mov', '.mkv', '.avi', '.flv', '.webm')
+
+
+def extend_and_replace(video_path, min_duration=10):
+    '''
+    如果视频时长小于 min_duration，则拼接多次并替换原文件（备份原始）
+    '''
+    try:
+        clip = VideoFileClip(video_path)
+        duration = clip.duration
+        if duration &gt;= min_duration:
+            clip.close()
+            return False  # 不处理
+
+        # 计算倍数
+        times = math.ceil(min_duration / duration)
+        new_clip = concatenate_videoclips([clip] * times)
+
+        # 备份原文件
+        bak_path = video_path + '.bak'
+        if not os.path.exists(bak_path):
+            shutil.copy2(video_path, bak_path)
+
+        temp_out = video_path + '.temp.mp4'
+        print(f'🎬 {os.path.basename(video_path)} 仅 {duration:.2f}s → 复制 {times} 次 → 替换原文件')
+
+        new_clip.write_videofile(temp_out, codec='libx264', audio_codec='aac', verbose=False, logger=None)
+        clip.close()
+        new_clip.close()
+
+        # 替换原视频
+        os.remove(video_path)
+        os.rename(temp_out, video_path)
+        return True
+
+    except Exception as e:
+        print(f'⚠ 无法处理 {video_path}: {e}')
+        return False
+
+
+def process_folder(root_dir, min_duration=10, exts=EXTS):
+    '''
+    遍历文件夹，处理所有视频
+    '''
+    video_list = []
+    for root, _, files in os.walk(root_dir):
+        for f in files:
+            if f.lower().endswith(exts):
+                video_list.append(os.path.join(root, f))
+
+    print(f'🎞 共检测到 {len(video_list)} 个视频文件\n')
+    processed = 0
+
+    for path in tqdm(video_list, desc='处理中'):
+        if extend_and_replace(path, min_duration=min_duration):
+            processed += 1
+
+    print(f'\n✅ 已处理 {processed} 个短视频（自动覆盖原文件，原始文件已备份为 .bak）')
+
+
+def main():
+    if not os.path.isdir(ROOT_DIR):
+        print(f'❌ 目录不存在: {ROOT_DIR}')
+        return
+
+    process_folder(ROOT_DIR, min_duration=MIN_DURATION)
+    print('\n📁 处理完成。</description><guid isPermaLink="true">https://feeday.cn/post/shi-pin-zeng-jia-dao-10-miao.html</guid><pubDate>Tue, 04 Nov 2025 12:19:08 +0000</pubDate></item><item><title>微软本地文本生成音频</title><link>https://feeday.cn/post/wei-ruan-ben-di-wen-ben-sheng-cheng-yin-pin.html</link><description>把指定目录下所有txt文件，用Windows系统自带语音引擎(SAPI)转换为wav音频。</description><guid isPermaLink="true">https://feeday.cn/post/wei-ruan-ben-di-wen-ben-sheng-cheng-yin-pin.html</guid><pubDate>Tue, 04 Nov 2025 12:17:29 +0000</pubDate></item><item><title>控制台筛选链接</title><link>https://feeday.cn/post/kong-zhi-tai-shai-xuan-lian-jie.html</link><description>```
+const links = document.getElementsByTagName('a');
+// 遍历所有链接并查找匹配的网址
+for (const link of links) {
+  const href = link.href;
+  // 使用正则表达式匹配类似的网址
+  const urlRegex = /https:\/\/www\.bilibili\.com\/video\/[A-Za-z0-9]+\/?/;
+  if (urlRegex.test(href)) {
+    console.log('匹配到的网址: ' + href);
+  }
+}
+```。</description><guid isPermaLink="true">https://feeday.cn/post/kong-zhi-tai-shai-xuan-lian-jie.html</guid><pubDate>Sun, 02 Nov 2025 09:51:07 +0000</pubDate></item><item><title>统计目录文件信息</title><link>https://feeday.cn/post/tong-ji-mu-lu-wen-jian-xin-xi.html</link><description>遍历 ROOT 目录，导出带媒体属性（时长/分辨率）的清单到 CSV（UTF-8）。</description><guid isPermaLink="true">https://feeday.cn/post/tong-ji-mu-lu-wen-jian-xin-xi.html</guid><pubDate>Sun, 02 Nov 2025 09:48:45 +0000</pubDate></item><item><title>md5命名文件</title><link>https://feeday.cn/post/md5-ming-ming-wen-jian.html</link><description>以文件 MD5 作为文件名（保留扩展名），递归处理子文件夹，
+并生成一个 md5_rename_map.csv 记录原始文件名与改后文件名及MD5。</description><guid isPermaLink="true">https://feeday.cn/post/md5-ming-ming-wen-jian.html</guid><pubDate>Sun, 02 Nov 2025 09:47:13 +0000</pubDate></item><item><title>删除DB文件</title><link>https://feeday.cn/post/shan-chu-DB-wen-jian.html</link><description>递归删除指定目录下所有 .db 文件，并生成日志（UTF-8）。</description><guid isPermaLink="true">https://feeday.cn/post/shan-chu-DB-wen-jian.html</guid><pubDate>Sun, 02 Nov 2025 09:45:50 +0000</pubDate></item><item><title>按文本匹配移动文件</title><link>https://feeday.cn/post/an-wen-ben-pi-pei-yi-dong-wen-jian.html</link><description>按照文本每行匹配文件复制到指定位置
+
+## 🧩 功能简介
+
+从指定的 TXT 文件（`txt_file`）中读取若干关键字（去重并按字典序排序）。</description><guid isPermaLink="true">https://feeday.cn/post/an-wen-ben-pi-pei-yi-dong-wen-jian.html</guid><pubDate>Sun, 02 Nov 2025 09:41:26 +0000</pubDate></item><item><title>通用媒体链接查看器</title><link>https://feeday.cn/post/tong-yong-mei-ti-lian-jie-cha-kan-qi.html</link><description>输入图像视频链接查看预览
+```
+&lt;!doctype html&gt;
+&lt;html lang='zh-CN'&gt;
+&lt;head&gt;
+  &lt;meta charset='utf-8' /&gt;
+  &lt;meta name='viewport' content='width=device-width, initial-scale=1' /&gt;
+  &lt;title&gt;通用媒体提取器：图片 + 视频 + BBCode 支持&lt;/title&gt;
+  &lt;style&gt;
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;line-height:1.5;margin:0;padding:24px;background:#0b0c0f;color:#e6e6e6;scroll-behavior:smooth}
+    h1{font-size:20px;margin:0 0 12px}
+    textarea{width:100%;min-height:160px;padding:12px;border-radius:12px;border:1px solid #2b2f36;background:#12141a;color:#e6e6e6;resize:vertical;margin-bottom:12px}
+    button{background:#3b82f6;border:none;color:white;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600;margin-right:8px}
+    button.secondary{background:#2b2f36;color:#d0d0d0}
+    .tip{font-size:12px;color:#9aa0a6;margin:8px 0 16px}
+    .grid{display:flex;flex-wrap:wrap;gap:12px}
+    figure{margin:0;background:#12141a;border:1px solid #2b2f36;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;max-width:400px}
+    figure&gt;img,figure&gt;video{max-width:100%;height:auto;object-fit:contain;background:#0b0c0f;cursor:pointer;border-radius:10px}
+    figcaption{font-size:12px;padding:6px 4px;color:#9aa0a6;word-break:break-all}
+    .err{color:#ff8a8a}
+    #topBtn{position:fixed;bottom:24px;right:24px;background:#3b82f6;color:white;border:none;border-radius:50%;width:48px;height:48px;font-size:20px;cursor:pointer;display:none;box-shadow:0 4px 10px rgba(0,0,0,0.3)}
+    #topBtn:hover{background:#2563eb}
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;通用媒体提取器（支持图片、视频、BBCode）&lt;/h1&gt;
+
+  &lt;textarea id='urls' placeholder='可粘贴任意文字，自动提取图片/视频链接，如：\n#3 http://x.cn/a.jpg http://x.cn/b.png [img]http://x.cn/c.webp[/img] [url=\'http://x.cn/d.jpg\']http://x.cn/e.jpg[/url]\nhttp://x.cn/f.mp4'&gt;&lt;/textarea&gt;
+
+  &lt;button id='render'&gt;显示媒体&lt;/button&gt;
+  &lt;button id='clear' class='secondary'&gt;清空&lt;/button&gt;
+
+  &lt;div class='tip'&gt;自动识别常见图片格式（.jpg/.jpeg/.png/.gif/.webp/.svg/.avif/.tiff/.bmp）及视频格式（.mp4/.webm/.mov）。</description><guid isPermaLink="true">https://feeday.cn/post/tong-yong-mei-ti-lian-jie-cha-kan-qi.html</guid><pubDate>Sat, 01 Nov 2025 16:49:29 +0000</pubDate></item><item><title>CentOS-WSL</title><link>https://feeday.cn/post/CentOS-WSL.html</link><description># CentOS WSL
+
+[CentOS](https://www.centos.org/) QCOW2 cloud images converted to RootFS for [WSL](https://docs.microsoft.com/en-us/windows/wsl/).
+
+## Current releases:
+ - [CentOS 9-stream](https://github.com/mishamosher/CentOS-WSL/releases/tag/9-stream-20230626)
+ - [CentOS 8-stream](https://github.com/mishamosher/CentOS-WSL/releases/tag/8-stream-20230626)
+ - [CentOS 8](https://github.com/mishamosher/CentOS-WSL/releases/tag/8.4-2105)
+ - [CentOS 7](https://github.com/mishamosher/CentOS-WSL/releases/tag/7.9-2211)
+ - [CentOS 6](https://github.com/mishamosher/CentOS-WSL/releases/tag/6.10-1907)
+
+# 常用命令
+
+在 PowerShell 或 CMD（管理员权限） 里执行：
+
+```
+wsl -l -v
+wsl --shutdown
+wsl --unregister CentOS7.6
+```
+。</description><guid isPermaLink="true">https://feeday.cn/post/CentOS-WSL.html</guid><pubDate>Sat, 01 Nov 2025 16:43:23 +0000</pubDate></item><item><title>YOLOv5</title><link>https://feeday.cn/post/YOLOv5.html</link><description># 🎯 YOLOv5 介绍文档
+
+## 🧠 一、什么是 YOLO？
+
+**YOLO（You Only Look Once）** 是一种用于 **目标检测（Object Detection）** 的深度学习模型。</description><guid isPermaLink="true">https://feeday.cn/post/YOLOv5.html</guid><pubDate>Sat, 01 Nov 2025 16:42:11 +0000</pubDate></item><item><title>IndexTTS-2</title><link>https://feeday.cn/post/IndexTTS-2.html</link><description>## 版本更新
+
+
+- **2025/09/08** IndexTTS-2 发布（首个支持精确合成时长控制的自回归零样本文本转语音模型）  
+- **2025/05/14** IndexTTS-1.5 发布（提升模型稳定性和英文表现）  
+- **2025/03/25** IndexTTS-1.0 发布（开放权重和推理代码）  
+- **2025/02/12** 论文提交至 arXiv，并发布 Demo 与测试集  
+
+---
+
+&lt;div style='text-align:left'&gt;
+  &lt;a href='https://arxiv.org/abs/2506.21619'&gt;
+    &lt;img src='https://img.shields.io/badge/ArXiv-2506.21619-red?logo=arxiv'/&gt;
+  &lt;/a&gt;
+  &lt;br/&gt;
+  &lt;a href='https://github.com/index-tts/index-tts'&gt;
+    &lt;img src='https://img.shields.io/badge/GitHub-Code-orange?logo=github'/&gt;
+  &lt;/a&gt;
+  &lt;a href='https://index-tts.github.io/index-tts2.github.io/'&gt;
+    &lt;img src='https://img.shields.io/badge/GitHub-Demo-orange?logo=github'/&gt;
+  &lt;/a&gt;
+  &lt;br/&gt;
+  &lt;a href='https://huggingface.co/spaces/IndexTeam/IndexTTS-2-Demo'&gt;
+    &lt;img src='https://img.shields.io/badge/HuggingFace-Demo-blue?logo=huggingface'/&gt;
+  &lt;/a&gt;
+  &lt;a href='https://huggingface.co/IndexTeam/IndexTTS-2'&gt;
+    &lt;img src='https://img.shields.io/badge/HuggingFace-Model-blue?logo=huggingface' /&gt;
+  &lt;/a&gt;
+  &lt;br/&gt;
+  &lt;a href='https://modelscope.cn/studios/IndexTeam/IndexTTS-2-Demo'&gt;
+    &lt;img src='https://img.shields.io/badge/ModelScope-Demo-purple?logo=modelscope'/&gt;
+  &lt;/&gt;
+  &lt;a href='https://modelscope.cn/models/IndexTeam/IndexTTS-2'&gt;
+    &lt;img src='https://img.shields.io/badge/ModelScope-Model-purple?logo=modelscope'/&gt;
+  &lt;/a&gt;
+&lt;/div&gt;
+
+---
+
+## 模型下载
+
+| **HuggingFace**                                          | **ModelScope** |
+|----------------------------------------------------------|----------------------------------------------------------|
+| [IndexTTS-2](https://huggingface.co/IndexTeam/IndexTTS-2) | [IndexTTS-2](https://modelscope.cn/models/IndexTeam/IndexTTS-2) |
+| [IndexTTS-1.5](https://huggingface.co/IndexTeam/IndexTTS-1.5) | [IndexTTS-1.5](https://modelscope.cn/models/IndexTeam/IndexTTS-1.5) |
+| [IndexTTS](https://huggingface.co/IndexTeam/Index-TTS) | [IndexTTS](https://modelscope.cn/models/IndexTeam/Index-TTS) |
+
+---
+
+
+##  社区支持
+
+* QQ 群：553460296 (No.1) / 663272642 (No.4)
+* Discord：[Join](https://discord.gg/uT32E7KDmy)
+* Email：[indexspeech@bilibili.com](mailto:indexspeech@bilibili.com)
+* 官方仓库：[https://github.com/index-tts/index-tts](https://github.com/index-tts/index-tts)
+
+---
+
+## 论文概览
+
+IndexTTS2：情感表达和持续时间控制的自动回归零样本文本转语音的突破
+
+[周思怡](https://arxiv.org/search/cs?searchtype=author&amp;query=Zhou,+S)， [周义全](https://arxiv.org/search/cs?searchtype=author&amp;query=Zhou,+Y)， [何毅](https://arxiv.org/search/cs?searchtype=author&amp;query=He,+Y)， [周勋](https://arxiv.org/search/cs?searchtype=author&amp;query=Zhou,+X)， [王金超](https://arxiv.org/search/cs?searchtype=author&amp;query=Wang,+J)， [邓伟](https://arxiv.org/search/cs?searchtype=author&amp;query=Deng,+W)， [舒景晨](https://arxiv.org/search/cs?searchtype=author&amp;query=Shu,+J)
+
+[v2] 2025 年 9 月 3 日星期三 10：46：35 UTC （1,632 KB）
+
+现有的自回归大规模文本转语音（TTS）模型在语音自然性方面具有优势，但其逐个标记的生成机制使得合成语音的持续时间难以精确控制。</description><guid isPermaLink="true">https://feeday.cn/post/IndexTTS-2.html</guid><pubDate>Sat, 01 Nov 2025 16:41:25 +0000</pubDate></item><item><title>huggingface 镜像站 PowerShell 下载</title><link>https://feeday.cn/post/huggingface%20-jing-xiang-zhan-%20PowerShell%20-xia-zai.html</link><description>HF Mirror —— Hugging Face 下载全攻略（国内可用）
+
+&gt; AI 开发绕不过一个问题：如何从 Hugging Face 稳定下载模型或数据集。</description><guid isPermaLink="true">https://feeday.cn/post/huggingface%20-jing-xiang-zhan-%20PowerShell%20-xia-zai.html</guid><pubDate>Sat, 01 Nov 2025 16:11:41 +0000</pubDate></item><item><title>rename_by_md5_with_log.py</title><link>https://feeday.cn/post/rename_by_md5_with_log.py.html</link><description>以文件 MD5 作为文件名（保留扩展名），递归处理子文件夹，
+    并生成一个 md5_rename_map.csv 记录原始文件名与改后文件名及MD5
+
+```
+import os
+import csv
+import hashlib
+from pathlib import Path
+
+# ======== 可修改配置 ========
+ROOT_DIR = Path(r'C:\test\md')  # 要处理的目录
+OUTPUT_CSV = ROOT_DIR / 'md5_rename_map1025.csv'    # 输出映射表路径
+DRY_RUN = False  # True 仅预览不执行重命名
+# ===========================
+
+
+def md5_of_file(file_path, chunk_size=8192):
+    '''计算文件 MD5'''
+    md5 = hashlib.md5()
+    with open(file_path, 'rb') as f:
+        while chunk := f.read(chunk_size):
+            md5.update(chunk)
+    return md5.hexdigest()
+
+
+def rename_file_to_md5(file_path: Path, writer):
+    '''重命名单个文件为md5，并写入CSV'''
+    try:
+        md5_val = md5_of_file(file_path)
+        new_name = f'{md5_val}{file_path.suffix.lower()}'
+        new_path = file_path.with_name(new_name)
+
+        if new_path == file_path:
+            # 已经是 md5 命名
+            return
+
+        if new_path.exists():
+            print(f'⚠️ 已存在相同MD5文件，跳过：{file_path}')
+            return
+
+        if DRY_RUN:
+            print(f'[DRY] {file_path} -&gt; {new_path}')
+        else:
+            file_path.rename(new_path)
+            print(f'✅ {file_path} -&gt; {new_path}')
+
+        # 写入映射表
+        writer.writerow([str(file_path), str(new_path), md5_val])
+
+    except Exception as e:
+        print(f'❌ {file_path} 计算或重命名失败：{e}')
+
+
+def main():
+    with open(OUTPUT_CSV, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['original_path', 'new_path', 'md5'])
+
+        for file in ROOT_DIR.rglob('*'):
+            if file.is_file():
+                rename_file_to_md5(file, writer)
+
+    print(f'\n📄 映射表已生成：{OUTPUT_CSV}')
+
+
+if __name__ == '__main__':
+    main()
+```。</description><guid isPermaLink="true">https://feeday.cn/post/rename_by_md5_with_log.py.html</guid><pubDate>Thu, 30 Oct 2025 16:26:17 +0000</pubDate></item><item><title>更新脚本</title><link>https://feeday.cn/post/geng-xin-jiao-ben.html</link><description>```
+name: auto-author (stub)
+
+on:
+  schedule:
+    - cron: '0 14 * * *'   # 每天 14:00 UTC（可改）
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '试跑（不创建 Issue）'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  stub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          pip install requests
+
+      - name: Run stub author
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}       # e.g. tcq20256/puck.chat
+          SERIES_NAME: ${{ vars.SERIES_NAME }} # 可选变量
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          python - &lt;&lt;'PY'
+          import os, sys, requests, datetime, textwrap
+
+          REPO_FULL = os.environ.get('REPO')           # 'owner/repo'
+          TOKEN = os.environ.get('GITHUB_TOKEN')
+          SERIES = os.environ.get('SERIES_NAME') or '雾钟巷·蝶梦'
+          DRY = str(os.environ.get('DRY_RUN','false')).lower()=='true'
+          if not REPO_FULL or not TOKEN:
+              print('Missing env REPO/GITHUB_TOKEN', file=sys.stderr); sys.exit(1)
+
+          GH = 'https://api.github.com'
+          hdr = {'Authorization': f'token {TOKEN}', 'Accept':'application/vnd.github+json'}
+
+          # 今天是否已发（带 auto 标签）
+          today = datetime.datetime.utcnow().date().isoformat()
+          r = requests.get(f'{GH}/repos/{REPO_FULL}/issues',
+                           headers=hdr, params={'state':'open','labels':'auto'}, timeout=30)
+          r.raise_for_status()
+          for it in r.json():
+              if (it.get('created_at','') or '')[:10] == today:
+                  print('Already posted today. Exit.'); sys.exit(0)
+
+          # 组装占位稿
+          cn_now = (datetime.datetime.utcnow()
+                    + datetime.timedelta(hours=8)).strftime('%Y-%m-%d %H:%M')
+          title = f'{SERIES}｜占位稿 {today}'
+          body = textwrap.dedent(f'''
+          &gt; 这是自动写作占位稿（无 API 版），用于验证“自动创建 Issue → 发布站点”的流水线。</description><guid isPermaLink="true">https://feeday.cn/post/geng-xin-jiao-ben.html</guid><pubDate>Tue, 14 Oct 2025 16:08:20 +0000</pubDate></item><item><title>豆包 API</title><link>https://feeday.cn/post/dou-bao-%20API.html</link><description>## 模型定价
+- [在线生成](https://console.volcengine.com/ark/region:ark+cn-beijing/model/detail?Id=doubao-seededit-3-0-i2i)
+- [使用量查看](https://console.volcengine.com/ark/region:ark+cn-beijing/openManagement?LLM=%7B%7D&amp;OpenTokenDrawer=false&amp;tab=ComputerVision)
+
+模型名称 | 定价元/张
+-- | --
+doubao-seedream-4.0 | 0.2
+doubao-seedream-3.0-t2i | 0.259
+doubao-seededit-3.0-i2i | 0.3
+
+
+## 豆包图像识别
+
+```
+import os
+import sys
+import subprocess
+
+# ===== 安装依赖 =====
+def install(package):
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package])
+
+install('openai&gt;=1.0')
+
+from openai import OpenAI
+
+# 初始化 Ark 客户端（建议方式：从环境变量读取）
+client = OpenAI(
+    base_url='https://ark.cn-beijing.volces.com/api/v3',
+    api_key='xxxx',
+)
+
+# 调用模型
+response = client.chat.completions.create(
+    model='doubao-1-5-vision-pro-32k-250115',
+    messages=[
+        {
+            'role': 'user',
+            'content': [
+                {
+                    'type': 'image_url',
+                    'image_url': {
+                        'url': 'https://ark-project.tos-cn-beijing.ivolces.com/images/view.jpeg'
+                    },
+                },
+                {'type': 'text', 'text': '这是哪里？'},
+            ],
+        }
+    ],
+)
+
+print(response.choices[0].message)
+```
+
+## 豆包图像修改
+
+```
+import os
+import sys
+import subprocess
+
+# ===== 自动安装依赖 =====
+def install(package):
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package])
+
+install('volcengine-python-sdk[ark]')
+
+# ===== 导入 SDK =====
+from volcenginesdkarkruntime import Ark
+
+# 初始化 Ark 客户端
+client = Ark(
+    base_url='https://ark.cn-beijing.volces.com/api/v3',
+    api_key='xxxx',
+)
+
+# 调用图片生成接口
+imagesResponse = client.images.generate(
+    model='doubao-seededit-3-0-i2i-250628',
+    prompt='改成爱心形状的泡泡',
+    image='https://ark-project.tos-cn-beijing.volces.com/doc_image/seededit_i2i.jpeg',
+    seed=123,
+    guidance_scale=5.5,
+    size='adaptive',
+    watermark=True
+)
+
+# 打印返回图片地址
+print(imagesResponse.data[0].url)
+```
+
+## 豆包改图下载本地
+
+```
+import os
+import sys
+import subprocess
+import requests
+
+# ===== 自动安装依赖 =====
+def install(package):
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package])
+
+try:
+    from volcenginesdkarkruntime import Ark
+except ImportError:
+    install('volcengine-python-sdk[ark]')
+    from volcenginesdkarkruntime import Ark
+
+# ===== 初始化 Ark 客户端 =====
+client = Ark(
+    base_url='https://ark.cn-beijing.volces.com/api/v3',
+    api_key='xxx',  # 建议改成 os.getenv('ARK_API_KEY')
+)
+
+# ===== 配置 =====
+TXT_FILE = r'c:\prompts.txt'   # 提示词文件
+SAVE_DIR = r'C:\doubao\i2i'   # 下载保存目录
+os.makedirs(SAVE_DIR, exist_ok=True)
+
+# ===== 读取提示词文件并逐行调用 =====
+with open(TXT_FILE, 'r', encoding='utf-8') as f:
+    prompts = [line.strip() for line in f if line.strip()]
+
+for idx, prompt in enumerate(prompts, start=1):
+    try:
+        imagesResponse = client.images.generate(
+            model='doubao-seededit-3-0-i2i-250628',
+            prompt=prompt,  # 每行作为提示词
+            image='https://ark-project.tos-cn-beijing.volces.com/doc_image/seededit_i2i.jpeg',
+            seed=123,
+            guidance_scale=5.5,
+            size='adaptive',
+            watermark=True
+        )
+        url = imagesResponse.data[0].url
+        print(f'[{idx}] 提示词: {prompt} -&gt; 图片地址: {url}')
+
+        # ===== 下载图片 =====
+        resp = requests.get(url, timeout=60)
+        if resp.status_code == 200:
+            # 文件名：序号_前10个字符提示词.jpg
+            safe_prompt = ''.join(c for c in prompt if c.isalnum())[:10]
+            filename = os.path.join(SAVE_DIR, f'{idx:03d}_{safe_prompt}.jpg')
+            with open(filename, 'wb') as f:
+                f.write(resp.content)
+            print(f'    已保存到: {filename}')
+        else:
+            print(f'    下载失败: HTTP {resp.status_code}')
+
+    except Exception as e:
+        print(f'[{idx}] 提示词: {prompt} -&gt; 生成失败: {e}')
+```
+
+## 本地图片批量修改
+
+```
+import os
+import sys
+import subprocess
+import base64
+import mimetypes
+import requests
+import re
+from time import sleep
+
+# ===== 自动安装依赖 =====
+def install(package):
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package])
+
+try:
+    from volcenginesdkarkruntime import Ark
+except ImportError:
+    install('volcengine-python-sdk[ark]')
+    from volcenginesdkarkruntime import Ark
+
+# ===== 工具函数 =====
+def to_data_url(img_path: str) -&gt; str:
+    '''把本地图片转成 data URL: data:image/xxx;base64,xxxx'''
+    with open(img_path, 'rb') as f:
+        b64 = base64.b64encode(f.read()).decode('utf-8')
+    mime, _ = mimetypes.guess_type(img_path)
+    if not mime:
+        mime = 'image/jpeg'
+    return f'data:{mime};base64,{b64}'
+
+def download(url: str, out_path: str, timeout: int = 60, retry: int = 3) -&gt; bool:
+    for i in range(1, retry + 1):
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.status_code == 200:
+                with open(out_path, 'wb') as f:
+                    f.write(r.content)
+                return True
+            else:
+                print(f'    [下载] HTTP {r.status_code}（{i}/{retry}）')
+        except Exception as e:
+            print(f'    [下载] 异常：{e}（{i}/{retry}）')
+        sleep(1)
+    return False
+
+def natural_key(s: str):
+    '''自然排序 key，确保 2.jpg &lt; 10.jpg'''
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split(r'(\d+)', s)]
+
+# ===== 初始化 Ark 客户端 =====
+client = Ark(
+    base_url='https://ark.cn-beijing.volces.com/api/v3',
+    api_key=os.getenv('ARK_API_KEY', 'xxx'),  # 推荐改用环境变量
+)
+
+# ===== 路径配置 =====
+IMG_DIR  = r'C:\doubao\188'     # 输入原图目录
+SAVE_DIR = r'C:\doubao\i2i'    # 输出目录
+TXT_FILE = r'C:\prompts.txt'   # 提示词文件
+os.makedirs(SAVE_DIR, exist_ok=True)
+
+# ===== 读取提示词 =====
+with open(TXT_FILE, 'r', encoding='utf-8') as f:
+    prompts = [line.strip() for line in f if line.strip()]
+if not prompts:
+    raise RuntimeError('prompts.txt 为空：请至少提供一行提示词。</description><guid isPermaLink="true">https://feeday.cn/post/dou-bao-%20API.html</guid><pubDate>Thu, 25 Sep 2025 14:01:00 +0000</pubDate></item><item><title>srt 切视频音频</title><link>https://feeday.cn/post/srt%20-qie-shi-pin-yin-pin.html</link><description>## 按字幕切割音频视频
+```
+# -*- coding: utf-8 -*-
+'''
+cut_by_srt_auto.py
+- 自动 pip 安装依赖 (srt, chardet, tqdm)
+- 自动匹配置顶文件夹里的媒体文件 (mp4/mp3/wav/mkv等)
+- 找到对应同名 .srt 文件
+- 按字幕时间切片，并输出到 【原文件名_clips】文件夹
+'''
+
+import os
+import sys
+import subprocess
+import importlib.util
+from pathlib import Path
+import re
+from datetime import timedelta
+
+# ==== 自动安装依赖 ====
+def pip_install(package):
+    try:
+        __import__(package)
+    except ImportError:
+        print(f'[INFO] 安装依赖: {package}')
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+
+for pkg in ['srt', 'chardet', 'tqdm']:
+    pip_install(pkg)
+
+import srt
+import chardet
+from tqdm import tqdm
+
+# ==== 工具函数 ====
+def detect_encoding(p):
+    raw = Path(p).read_bytes()
+    enc = chardet.detect(raw).get('encoding') or 'utf-8'
+    try:
+        raw.decode(enc)
+    except Exception:
+        enc = 'utf-8'
+    return enc
+
+def td2ss(t: timedelta):
+    return t.total_seconds()
+
+def ss2tc(seconds: float):
+    ms = int(round(seconds * 1000))
+    h = ms // 3600000
+    m = (ms % 3600000) // 60000
+    s = (ms % 60000) // 1000
+    ms = ms % 1000
+    return f'{h:02d}:{m:02d}:{s:02d}.{ms:03d}'
+
+def safe_name(text, keep=30):
+    text = re.sub(r'[\\/:*?\'&lt;&gt;|]', '_', text.strip())
+    text = re.sub(r'\s+', ' ', text)
+    return text[:keep] if text else 'clip'
+
+# ==== 主逻辑 ====
+def main():
+    base = Path(__file__).parent  # 当前脚本所在目录（置顶文件夹）
+    # 找媒体文件
+    media_files = list(base.glob('*.mp4')) + list(base.glob('*.mkv')) + list(base.glob('*.mp3')) + list(base.glob('*.wav'))
+    if not media_files:
+        print('[ERROR] 没找到媒体文件（支持 mp4/mkv/mp3/wav）')
+        return
+    media = media_files[0]  # 默认取第一个
+    print(f'[INFO] 使用媒体文件: {media}')
+
+    # 找 srt 文件（同名）
+    srt_file = media.with_suffix('.srt')
+    if not srt_file.exists():
+        print(f'[ERROR] 没找到对应字幕文件: {srt_file}')
+        return
+    print(f'[INFO] 使用字幕文件: {srt_file}')
+
+    # 输出目录
+    outdir = base / f'{media.stem}_clips'
+    outdir.mkdir(exist_ok=True)
+
+    # 读取字幕
+    enc = detect_encoding(srt_file)
+    text = srt_file.read_text(encoding=enc, errors='ignore')
+    subs = list(srt.parse(text))
+
+    total = 0
+    for i, sub in enumerate(tqdm(subs, desc='Cutting', unit='seg'), start=1):
+        start_s = td2ss(sub.start)
+        end_s = td2ss(sub.end)
+
+        ss = ss2tc(start_s)
+        to = ss2tc(end_s)
+
+        snippet = sub.content.replace('\n', ' ').strip()
+        name_text = safe_name(snippet, keep=20)
+
+        ext = '.mp4' if media.suffix.lower() in ['.mp4', '.mkv'] else '.m4a'
+        out_path = outdir / f'{i:03d}_{name_text}{ext}'
+
+        cmd = [
+            'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
+            '-ss', ss, '-to', to, '-i', str(media),
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
+            '-c:a', 'aac', '-b:a', '128k',
+            str(out_path)
+        ]
+        try:
+            subprocess.run(cmd, check=True)
+            total += 1
+        except subprocess.CalledProcessError:
+            print(f'[WARN] 第 {i} 段导出失败')
+
+    print(f'[完成] 共导出 {total} 段 -&gt; {outdir}')
+
+if __name__ == '__main__':
+    main()
+```。</description><guid isPermaLink="true">https://feeday.cn/post/srt%20-qie-shi-pin-yin-pin.html</guid><pubDate>Sun, 21 Sep 2025 10:46:32 +0000</pubDate></item><item><title>Gitea 管理脚本</title><link>https://feeday.cn/post/Gitea%20-guan-li-jiao-ben.html</link><description># 部署 Gitea
+```
+#!/bin/bash
+# Gitea 管理脚本：安装前先卸载旧的
+set -e
+
+GITEA_VERSION='1.22.3'                          # 要安装的版本
+GITEA_BIN='/usr/local/bin/gitea'
+GITEA_USER='git'
+GITEA_HOME='/var/lib/gitea'
+GITEA_CONF='/etc/gitea'
+SERVICE_FILE='/etc/systemd/system/gitea.service'
+
+uninstall_gitea() {
+    echo '⚠️ 卸载旧版 Gitea ...'
+    systemctl stop gitea &gt;/dev/null 2&gt;&amp;1 || true
+    systemctl disable gitea &gt;/dev/null 2&gt;&amp;1 || true
+    rm -f $SERVICE_FILE
+    rm -f $GITEA_BIN
+    systemctl daemon-reload
+    echo '✅ 卸载完成（数据目录 $GITEA_HOME 和配置 $GITEA_CONF 保留）'
+}
+
+install_gitea() {
+    echo '📥 开始安装 Gitea v${GITEA_VERSION} ...'
+    # 卸载旧版本
+    uninstall_gitea
+
+    # 创建用户和目录
+    id -u $GITEA_USER &amp;&gt;/dev/null || useradd -r -m -d $GITEA_HOME -s /bin/bash $GITEA_USER
+    mkdir -p $GITEA_HOME/{custom,data,log} $GITEA_CONF
+    chown -R $GITEA_USER:$GITEA_USER $GITEA_HOME $GITEA_CONF
+
+    # 下载二进制
+    wget -O $GITEA_BIN 'https://dl.gitea.com/gitea/${GITEA_VERSION}/gitea-${GITEA_VERSION}-linux-amd64'
+    chmod +x $GITEA_BIN
+
+    # 写 systemd 服务
+    cat &gt; $SERVICE_FILE &lt;&lt;EOF
+[Unit]
+Description=Gitea
+After=syslog.target
+After=network.target
+Requires=network.target
+
+[Service]
+RestartSec=2s
+Type=simple
+User=$GITEA_USER
+Group=$GITEA_USER
+WorkingDirectory=$GITEA_HOME
+ExecStart=$GITEA_BIN web --config $GITEA_CONF/app.ini
+Restart=always
+Environment=USER=$GITEA_USER HOME=$GITEA_HOME GITEA_WORK_DIR=$GITEA_HOME
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable gitea
+    systemctl start gitea
+    echo '✅ 安装完成！访问 http://你的IP:3000 初始化'
+}
+
+restart_gitea() {
+    echo '🔄 正在重启 Gitea ...'
+    systemctl restart gitea
+    echo '✅ 已重启'
+}
+
+stop_gitea() {
+    echo '⏹️ 正在停止 Gitea ...'
+    systemctl stop gitea
+    echo '✅ 已停止'
+}
+
+menu() {
+    echo '===== Gitea 管理 ====='
+    echo '1) 安装最新 Gitea（会自动卸载旧版）'
+    echo '2) 卸载 Gitea'
+    echo '3) 重启 Gitea'
+    echo '4) 停止 Gitea'
+    echo '======================'
+    read -p '请选择操作: ' choice
+
+    case $choice in
+        1) install_gitea ;;
+        2) uninstall_gitea ;;
+        3) restart_gitea ;;
+        4) stop_gitea ;;
+        *) echo '无效选择' ;;
+    esac
+}
+
+menu
+```。</description><guid isPermaLink="true">https://feeday.cn/post/Gitea%20-guan-li-jiao-ben.html</guid><pubDate>Sat, 13 Sep 2025 05:29:30 +0000</pubDate></item><item><title>CentOS 7.6  SSH 防暴力破解</title><link>https://feeday.cn/post/CentOS%207.6%20%20SSH%20-fang-bao-li-po-jie.html</link><description>#  普通连接
+
+```
+ssh -p 22 root@192.168.1.1
+```
+
+#  密钥连接
+
+- https://github.com/settings/ssh/new
+
+```
+ssh-keygen -t rsa -b 4096 -C '123@qq.com'
+type C:\.ssh\id_rsa.pub
+
+ssh -i &lt;私钥文件路径&gt; &lt;用户名&gt;@&lt;服务器IP&gt;
+
+ssh -T git@github.com
+git@github.com:tcq20256/feeday.git
+```
+
+# 封禁攻击的IP
+
+```
+#!/usr/bin/env bash
+# setup_ssh_antibrute.sh
+# CentOS 7.6：Fail2Ban SSH 防暴力破解（安装/配置 + 自愈修复 一体化）
+# - 仅动 fail2ban，不改 sshd 端口/认证方式，不影响其他服务
+# - firewalld 在跑：firewallcmd-ipset（运行时规则，非永久）；否则用 iptables-multiport
+# - BAN/UNBAN 审计日志可自定义路径（默认 /home/lighthouse/bash/ssh-ban.log，或 BAN_LOG='__SCRIPT_DIR__'）
+# - 检测到 socket 连接失败会自动执行修复流程（清理残留、重建 /run/fail2ban、恢复 SELinux 上下文、补齐 iptables）
+
+set -euo pipefail
+
+### ===== 可调参数（也可用环境变量覆盖）=====
+BANTIME='${BANTIME:-3600}'     # 被封时长（秒）
+FINDTIME='${FINDTIME:-600}'    # 观察窗口（秒）
+MAXRETRY='${MAXRETRY:-5}'      # 失败次数阈值
+MY_IP='${MY_IP:-}'             # 可选：你的出口白名单，如 1.2.3.4
+DEFAULT_BAN_LOG='/home/lighthouse/bash/ssh-ban.log'
+
+# 日志位置：支持 BAN_LOG='__SCRIPT_DIR__'
+SCRIPT_DIR='$(cd -- '$(dirname -- '${BASH_SOURCE[0]}')' &amp;&amp; pwd)'
+if [[ '${BAN_LOG:-}' == '__SCRIPT_DIR__' ]]; then
+  BAN_LOG='${SCRIPT_DIR}/ssh-ban.log'
+else
+  BAN_LOG='${BAN_LOG:-$DEFAULT_BAN_LOG}'
+fi
+
+### ===== 小工具 =====
+msg(){ echo -e '\033[1;32m[INFO]\033[0m $*'; }
+warn(){ echo -e '\033[1;33m[WARN]\033[0m $*'; }
+err(){ echo -e '\033[1;31m[ERR ]\033[0m $*'; }
+
+require_root(){ [[ ${EUID:-$(id -u)} -eq 0 ]] || { err '请用 root 运行：sudo bash $0'; exit 1; }; }
+file_put(){ # $1:path  $2:content
+  local p='$1'; shift
+  umask 022; cat &gt;'$p' &lt;&lt;&lt;'$*'
+  chmod 0644 '$p'
+}
+
+### ===== 修复流程：清理残留 / 目录 / SELinux / 组件 =====
+repair_fail2ban(){
+  warn '触发自愈修复：清理残留并重建运行环境……'
+  systemctl stop fail2ban || true
+  pkill -9 -f fail2ban-server || true
+
+  rm -rf /run/fail2ban /var/run/fail2ban
+  install -d -m 755 -o root -g root /run/fail2ban
+  ln -sfn /run/fail2ban /var/run/fail2ban
+
+  # SELinux（若启用则恢复上下文，无副作用）
+  if command -v selinuxenabled &gt;/dev/null 2&gt;&amp;1 &amp;&amp; selinuxenabled; then
+    restorecon -Rv /run/fail2ban || true
+  fi
+
+  # 组件兜底：当前 banaction 可能用到 iptables
+  yum install -y -q iptables iptables-services || true
+
+  # 确保 fail2ban.conf 使用标准 socket 路径（仅修正缺失/异常情况）
+  local conf='/etc/fail2ban/fail2ban.conf'
+  if [[ -f '$conf' ]]; then
+    grep -qE '^\s*socket\s*=\s*/var/run/fail2ban/fail2ban\.sock' '$conf' || \
+      sed -ri 's|^\s*socket\s*=.*|socket = /var/run/fail2ban/fail2ban.sock|g' '$conf'
+    grep -qE '^\s*pidfile\s*=\s*/var/run/fail2ban/fail2ban\.pid' '$conf' || \
+      sed -ri 's|^\s*pidfile\s*=.*|pidfile = /var/run/fail2ban/fail2ban.pid|g' '$conf'
+  fi
+
+  systemctl restart fail2ban
+  sleep 1
+}
+
+### ===== 主流程 =====
+require_root
+
+# 1) 安装依赖
+if ! rpm -qa | grep -qiE '^epel-release'; then
+  msg '安装 epel-release ...'
+  yum install -y epel-release
+fi
+if ! rpm -qa | grep -qiE '^fail2ban(-server)?'; then
+  msg '安装 fail2ban ...'
+  yum install -y fail2ban
+else
+  msg 'fail2ban 已安装'
+fi
+
+# 2) 检测 firewalld
+FIREWALLD_ACTIVE=0
+if systemctl is-active firewalld &gt;/dev/null 2&gt;&amp;1; then
+  FIREWALLD_ACTIVE=1
+  msg 'firewalld 运行中：banaction=firewallcmd-ipset（运行时规则，非永久）'
+else
+  warn 'firewalld 未运行：banaction=iptables-multiport'
+fi
+BANACTION='iptables-multiport'
+[[ $FIREWALLD_ACTIVE -eq 1 ]] &amp;&amp; BANACTION='firewallcmd-ipset'
+
+# 3) 自定义动作：log-ban（正确使用 &lt;name&gt;/&lt;ip&gt;/&lt;port&gt;/&lt;failures&gt;；printf 用 %%s；date 用 %%F %%T）
+file_put /etc/fail2ban/action.d/log-ban.local \
+'[Definition]
+actionban   = /bin/sh -c '\''printf '%%s\tBAN\tjail=&lt;name&gt;\tip=&lt;ip&gt;\tport=&lt;port&gt;\tfailures=&lt;failures&gt;\tsrc=%(src)s\n' '$(date '+%%F %%T')' &gt;&gt; %(logfile)s'\''
+actionunban = /bin/sh -c '\''printf '%%s\tUNBAN\tjail=&lt;name&gt;\tip=&lt;ip&gt;\n' '$(date '+%%F %%T')' &gt;&gt; %(logfile)s'\'''
+chmod 0644 /etc/fail2ban/action.d/log-ban.local
+
+# 4) 生成 jail.local（仅开启 sshd 监狱）
+JAIL_LOCAL='/etc/fail2ban/jail.local'
+if [[ -f '$JAIL_LOCAL' ]]; then
+  cp -a '$JAIL_LOCAL' '${JAIL_LOCAL}.bak.$(date +%Y%m%d-%H%M%S)'
+  msg '已备份原配置：${JAIL_LOCAL}.bak.*'
+fi
+IGNOREIP='127.0.0.1/8'
+[[ -n '$MY_IP' ]] &amp;&amp; IGNOREIP='$IGNOREIP $MY_IP'
+file_put '$JAIL_LOCAL' \
+'[DEFAULT]
+bantime   = ${BANTIME}
+findtime  = ${FINDTIME}
+maxretry  = ${MAXRETRY}
+backend   = auto
+ignoreip  = ${IGNOREIP}
+banaction = ${BANACTION}
+
+[sshd]
+enabled  = true
+port     = ssh
+filter   = sshd
+logpath  = /var/log/secure
+action   = %(action_)s
+           log-ban[logfile=${BAN_LOG}, src=/var/log/secure]
+'
+chmod 0644 '$JAIL_LOCAL'
+
+# 5) 日志与 logrotate
+mkdir -p '$(dirname -- '$BAN_LOG')'
+touch '$BAN_LOG'
+chmod 0640 '$BAN_LOG'
+chown root:root '$BAN_LOG'
+file_put /etc/logrotate.d/ssh-ban \
+'${BAN_LOG} {
+    daily
+    rotate 14
+    missingok
+    notifempty
+    compress
+    create 0640 root root
+}
+'
+
+# 6) 兜底运行目录
+install -d -m 755 -o root -g root /run/fail2ban
+ln -sfn /run/fail2ban /var/run/fail2ban
+
+# 7) 语法测试 &amp; 启动
+msg '校验 fail2ban 配置语法 ...'
+if ! fail2ban-client -t; then
+  err '配置语法校验失败，请检查上方输出。</description><guid isPermaLink="true">https://feeday.cn/post/CentOS%207.6%20%20SSH%20-fang-bao-li-po-jie.html</guid><pubDate>Sat, 13 Sep 2025 04:09:13 +0000</pubDate></item><item><title>下载链接</title><link>https://feeday.cn/post/xia-zai-lian-jie.html</link><description>## 获取链接
+```
+const links = document.getElementsByTagName('a');
+
+// 遍历所有链接并查找匹配 Hugging Face blob 地址
+for (const link of links) {
+  const href = link.href;
+  // 匹配 datasets 仓库 blob 链接
+  const urlRegex = /^https:\/\/huggingface\.co\/datasets\/[^/]+\/[^/]+\/blob\/[^/]+\/.+$/;
+  if (urlRegex.test(href)) {
+    // 替换 blob → resolve
+    const realUrl = href.replace('/blob/', '/resolve/');
+    console.log('直链: ' + realUrl);
+  }
+}
+```
+
+## 执行下载
+
+```
+# -*- coding: utf-8 -*-
+'''
+auto_paste_two_options.py
+两个选项：
+1) 开始：进入坐标获取界面 → F5 保存坐标后自动开始循环
+0) 退出
+
+循环逻辑：
+- 从 TXT 每行读取
+- 点击输入框 → 粘贴 → 回车(或点击按钮)
+- 间隔 N 秒继续
+'''
+
+import os, sys, json, time, subprocess
+
+# ===== 依赖自动安装 =====
+def ensure_packages():
+    for p in ['pyautogui', 'keyboard', 'pyperclip']:
+        try:
+            __import__('pyautogui' if p=='pyautogui' else p)
+        except Exception:
+            print(f'[安装] 缺少 {p}，正在安装...')
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', p])
+ensure_packages()
+
+import pyautogui, keyboard, pyperclip
+
+pyautogui.FAILSAFE = True
+pyautogui.PAUSE = 0.03
+
+CONFIG_FILE = 'auto_paste_config.json'
+STATE_FILE  = 'auto_paste_state.json'
+
+# ===== 这里按需改默认值 =====
+DEFAULT_CONFIG = {
+    'txt_file': r'c:\Users\Puck\Desktop\sid.txt',   # ← 改成你的 txt 路径
+    'coords': {'click_target': None, 'submit_btn': None},
+    'interval_sec': 180,                  # 间隔秒（3分钟）
+    'clear_before_paste': True,           # 粘贴前 Ctrl+A 清空
+    'press_enter_after_paste': True       # True=回车提交；False=点击 submit_btn
+}
+
+# ========== 工具函数 ==========
+def load_json(path, default=None):
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return default
+
+def save_json(path, data):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def get_conf():
+    conf = load_json(CONFIG_FILE, None)
+    if conf is None:
+        conf = DEFAULT_CONFIG.copy()
+        save_json(CONFIG_FILE, conf)
+    else:
+        # 补齐字段
+        for k, v in DEFAULT_CONFIG.items():
+            if k not in conf: conf[k] = v
+        if 'coords' not in conf or not isinstance(conf['coords'], dict):
+            conf['coords'] = {'click_target': None, 'submit_btn': None}
+        conf['coords'].setdefault('click_target', None)
+        conf['coords'].setdefault('submit_btn', None)
+        save_json(CONFIG_FILE, conf)
+    return conf
+
+def click(xy):
+    if not xy: return
+    x, y = xy
+    pyautogui.moveTo(x, y, duration=0.05)
+    pyautogui.click()
+
+def paste_text(text, clear_before=True):
+    if clear_before:
+        pyautogui.hotkey('ctrl', 'a'); time.sleep(0.05)
+    pyperclip.copy(text); time.sleep(0.05)
+    pyautogui.hotkey('ctrl', 'v')
+
+def press_enter():
+    pyautogui.press('enter')
+
+def human_time(sec):
+    m, s = divmod(int(sec), 60)
+    h, m = divmod(m, 60)
+    if h: return f'{h}小时{m}分{s}秒'
+    if m: return f'{m}分{s}秒'
+    return f'{s}秒'
+
+def countdown(total_sec):
+    start = time.time()
+    paused = False
+    while True:
+        if keyboard.is_pressed('esc'):
+            print('\n[退出] ESC 触发，结束循环。</description><guid isPermaLink="true">https://feeday.cn/post/xia-zai-lian-jie.html</guid><pubDate>Wed, 10 Sep 2025 15:58:07 +0000</pubDate></item><item><title>GPT5-雾钟巷-归途</title><link>https://feeday.cn/post/GPT5--wu-zhong-xiang---gui-tu.html</link><description>林远在城市里住在一间低矮的隔断房，窗外是一条永远潮着油烟的背街。</description><guid isPermaLink="true">https://feeday.cn/post/GPT5--wu-zhong-xiang---gui-tu.html</guid><pubDate>Sat, 06 Sep 2025 09:34:40 +0000</pubDate></item><item><title>GPT5-雾钟巷-无名日</title><link>https://feeday.cn/post/GPT5--wu-zhong-xiang---wu-ming-ri.html</link><description>林远拖着行李从小站出来。</description><guid isPermaLink="true">https://feeday.cn/post/GPT5--wu-zhong-xiang---wu-ming-ri.html</guid><pubDate>Thu, 04 Sep 2025 15:34:35 +0000</pubDate></item><item><title>GPT5-鬼故事-雾钟巷</title><link>https://feeday.cn/post/GPT5--gui-gu-shi---wu-zhong-xiang.html</link><description>## 一
+
+林远回到雾钟巷的时候，天刚下过一阵细雨。</description><guid isPermaLink="true">https://feeday.cn/post/GPT5--gui-gu-shi---wu-zhong-xiang.html</guid><pubDate>Thu, 04 Sep 2025 14:50:12 +0000</pubDate></item><item><title>word 合并文档</title><link>https://feeday.cn/post/word%20-he-bing-wen-dang.html</link><description>## 文档转换docx后合并
+```
+import os
+import sys
+import time
+import shutil
+import subprocess
+from pathlib import Path
+
+# ========== 自动安装依赖 ==========
+def install(package_name, import_name=None):
+    try:
+        __import__(import_name or package_name)
+    except ImportError:
+        print(f'⚙️ 正在安装依赖: {package_name} ...')
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', package_name])
+
+install('python-docx', 'docx')
+install('docxcompose', 'docxcompose')
+try:
+    __import__('win32com.client')
+except ImportError:
+    try:
+        install('pywin32', 'win32com')
+    except Exception:
+        pass
+
+from docx import Document
+from docxcompose.composer import Composer
+
+# ========== 配置 ==========
+input_dir = r'D:\doc'            # 待合并目录（含 .doc / .docx）
+output_file = r'D:\merged.docx'  # 输出（必须 .docx）
+
+# ========== 定位 soffice.exe ==========
+def find_soffice_exe():
+    candidates = [
+        r'C:\Program Files\LibreOffice\program\soffice.exe',
+        r'C:\Program Files (x86)\LibreOffice\program\soffice.exe',
+    ]
+    # 也支持便携版/自定义安装：在常见盘符搜一层
+    for drive in ['C:', 'D:', 'E:']:
+        p = Path(drive + r'\LibreOffice\program\soffice.exe')
+        if p.exists():
+            candidates.insert(0, str(p))
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    # PATH 中查找
+    w = shutil.which('soffice')
+    return w
+
+def has_word():
+    try:
+        import win32com.client  # noqa
+        return True
+    except Exception:
+        return False
+
+# ========== 转换函数 ==========
+def convert_doc_to_docx_with_soffice(soffice_path, doc_path):
+    outdir = os.path.dirname(doc_path)
+    print(f'🔄 LibreOffice 转换: {doc_path}')
+    try:
+        subprocess.run(
+            [soffice_path, '--headless', '--convert-to', 'docx', '--outdir', outdir, doc_path],
+            check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        )
+        new_path = doc_path + 'x'  # xxx.doc -&gt; xxx.docx
+        for _ in range(30):
+            if os.path.exists(new_path):
+                break
+            time.sleep(0.1)
+        if os.path.exists(new_path):
+            print(f'✅ 转换成功: {new_path}')
+            return new_path
+        print(f'❌ 转换失败: 未找到 {new_path}')
+    except subprocess.CalledProcessError as e:
+        print('❌ LibreOffice 转换出错：')
+        print(e.stdout or str(e))
+    return None
+
+def convert_doc_to_docx_with_word(doc_path):
+    print(f'🔄 Word 转换: {doc_path}')
+    try:
+        import win32com.client as win32
+        word = win32.gencache.EnsureDispatch('Word.Application')
+        word.Visible = False
+        doc = None
+        new_path = doc_path + 'x'
+        try:
+            doc = word.Documents.Open(doc_path)
+            doc.SaveAs(new_path, FileFormat=16)  # 16 = wdFormatXMLDocument (.docx)
+        finally:
+            if doc is not None:
+                doc.Close(False)
+            word.Quit()
+        if os.path.exists(new_path):
+            print(f'✅ 转换成功: {new_path}')
+            return new_path
+        else:
+            print(f'❌ 转换失败: 未找到 {new_path}')
+    except Exception as e:
+        print(f'❌ Word 转换出错: {e}')
+    return None
+
+def convert_doc_to_docx(doc_path):
+    soffice = find_soffice_exe()
+    if soffice and os.path.exists(soffice):
+        p = convert_doc_to_docx_with_soffice(soffice, doc_path)
+        if p:
+            return p
+    if has_word():
+        p = convert_doc_to_docx_with_word(doc_path)
+        if p:
+            return p
+    print(f'⚠️ 无法转换（缺少 LibreOffice 或 Word）：{doc_path}')
+    return None
+
+# ========== 合并 ==========
+def merge_docs(input_dir, output_file):
+    if not output_file.lower().endswith('.docx'):
+        base, _ = os.path.splitext(output_file)
+        output_file = base + '.docx'
+        print(f'ℹ️ 输出强制为 .docx：{output_file}')
+
+    names = [f for f in os.listdir(input_dir)
+             if f.lower().endswith(('.doc', '.docx')) and not f.startswith('~$')]
+    names.sort()
+    if not names:
+        print('⚠️ 目录中没有 .doc / .docx 文件。</description><guid isPermaLink="true">https://feeday.cn/post/word%20-he-bing-wen-dang.html</guid><pubDate>Wed, 03 Sep 2025 10:23:23 +0000</pubDate></item><item><title>youtube-视频预览</title><link>https://feeday.cn/post/youtube--shi-pin-yu-lan.html</link><description># 🎬 yt-dlp-youtube-web
+
+基于 **Python Flask** 的 油管视频预览，仅供测试，适配 Cookie 验证。</description><guid isPermaLink="true">https://feeday.cn/post/youtube--shi-pin-yu-lan.html</guid><pubDate>Sat, 30 Aug 2025 17:54:41 +0000</pubDate></item><item><title>删除重复图像</title><link>https://feeday.cn/post/shan-chu-zhong-fu-tu-xiang.html</link><description>删除重复图像
+## 安装依赖
+```
+pip install opencv-python numpy keras tensorflow
+```
+## 脚本程序
+```
+import os
+import cv2
+import numpy as np
+from keras.applications.resnet50 import ResNet50, preprocess_input
+
+# 加载ResNet50模型用于提取图像特征
+model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+
+def extract_image_features(image_path):
+    image = cv2.imread(image_path)  # 读取图片
+    image = cv2.resize(image, (224, 224))  # 调整图片大小
+    image = np.expand_dims(image, axis=0)  # 扩展维度
+    image = preprocess_input(image)  # 预处理图片
+    
+    features = model.predict(image)  # 提取特征
+    features = features.flatten()  # 展平特征向量
+    features /= np.linalg.norm(features)  # 特征向量归一化
+    
+    return features
+
+def delete_duplicate_images(directory):
+    images = []
+    features = []
+    to_delete = []
+    
+    # 遍历目录中的所有文件
+    for filename in os.listdir(directory):
+        file_path = os.path.join(directory, filename)
+        if os.path.isfile(file_path):
+            try:
+                image_features = extract_image_features(file_path)
+                for i, feature in enumerate(features):
+                    # 计算图像之间的余弦相似度
+                    similarity = np.dot(image_features, feature) / (np.linalg.norm(image_features) * np.linalg.norm(feature))
+                    if similarity &gt; 0.99:  # 设定一个阈值，判断图片是否相似
+                        print(f'Found duplicate: {filename} and {images[i]}')
+                        to_delete.append(file_path)
+                        break
+                else:
+                    images.append(filename)
+                    features.append(image_features)
+            except Exception as e:
+                print(f'Error processing {filename}: {e}')
+    
+    # 删除重复的图片
+    for file_path in to_delete:
+        os.remove(file_path)
+        print(f'Deleted duplicate image: {file_path}')
+
+# 设置图片文件夹路径
+directory = r'D:\test'
+delete_duplicate_images(directory)
+```。</description><guid isPermaLink="true">https://feeday.cn/post/shan-chu-zhong-fu-tu-xiang.html</guid><pubDate>Wed, 20 Aug 2025 04:08:42 +0000</pubDate></item><item><title>正则表达式</title><link>https://feeday.cn/post/zheng-ze-biao-da-shi.html</link><description>
+# 正则表达式速查与示例
+
+---
+
+## 基础匹配
+
+| 功能 | 正则 | 示例文本 | 匹配结果 |
+|------|------|----------|----------|
+| **非数字** | `[^0-9]*` | `abc123` | `abc` |
+| **非数字（简写）** | `\D+` | `A9B` | `A` |
+| **n 位数字** | `\d{4}` | `2025-08` | `2025` |
+| **至少 n 位数字** | `\d{3,}` | `abc12345xyz` | `12345` |
+| **长度 3–20 的任意字符** | `.{3,20}` | `hello` | `hello` |
+
+---
+
+## 多行模式（`(?m)`）
+
+| 功能 | 正则 | 示例文本 | 匹配结果 |
+|------|------|----------|----------|
+| **每行最后两个字符** | `(?m).{2}$` | `abc\ndefg` | `bc`, `fg` |
+| **每行开头两个字符** | `(?m)^.{2}` | `abc\ndefg` | `ab`, `de` |
+
+---
+
+## 字符类
+
+| 功能 | 正则 | 示例文本 | 匹配结果 |
+|------|------|----------|----------|
+| **中文字符** | `[\u4e00-\u9fa5]` | `你好123` | `你`, `好` |
+| **中文字符（推荐）** | `\p{Han}` | `汉字abc` | `汉`, `字` |
+| **英文和数字** | `[A-Za-z0-9]+` | `abc123!` | `abc123` |
+| **数字、字母、下划线** | `[A-Za-z0-9_]+` | `abc_123!` | `abc_123` |
+| **长度 3–20 的数字/字母/下划线** | `[A-Za-z0-9_]{3,20}` | `abc_123` | `abc_123` |
+
+---
+
+## 常用提取规则
+
+| 功能 | 正则 | 示例文本 | 匹配结果 |
+|------|------|----------|----------|
+| **匹配 `(数字)`** | `\(\d+\)` | `file(1).txt` | `(1)` |
+| **邮箱** | `^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$` | `test@example.com` | `test@example.com` |
+| **中国大陆手机号** | `^1[3-9]\d{9}$` | `13812345678` | `13812345678` |
+
+---
+
+## URL 匹配（双引号包围）
+
+1. 原始版本（不允许域名中有 `.`）
+```regex
+https?:\/\/[^\s\/$.?#]+[^\s]*?(?=')
+```。</description><guid isPermaLink="true">https://feeday.cn/post/zheng-ze-biao-da-shi.html</guid><pubDate>Thu, 14 Aug 2025 14:46:44 +0000</pubDate></item><item><title>删除重复文件</title><link>https://feeday.cn/post/shan-chu-zhong-fu-wen-jian.html</link><description>## 删除重复文件
+```
+import os
+import re
+
+# === 配置 ===
+FOLDER = r'C:\Users\1'  # 目标目录
+RECURSIVE = False                    # True=递归子文件夹
+DRY_RUN = False                       # True=预演；确认后改为 False 真删
+
+# 规则：只要“文件名（不含扩展名）”里出现 (数字) 就认定为副本
+# 例：a(1).txt / a (2).txt / a(12) (3).jpg 都会被删除
+PAREN_NUM_IN_STEM = re.compile(r'\(\s*\d+\s*\)')
+
+def iter_files(folder):
+    if RECURSIVE:
+        for root, _, files in os.walk(folder):
+            for f in files:
+                yield root, f
+    else:
+        for f in os.listdir(folder):
+            p = os.path.join(folder, f)
+            if os.path.isfile(p):
+                yield folder, f
+
+deleted, skipped = 0, 0
+
+for root, fname in iter_files(FOLDER):
+    stem, ext = os.path.splitext(fname)
+    if ext == '':  # 无扩展名也按规则处理
+        stem = fname
+    if PAREN_NUM_IN_STEM.search(stem):
+        path = os.path.join(root, fname)
+        try:
+            if DRY_RUN:
+                print(f'[预演] 将删除：{path}')
+            else:
+                os.remove(path)
+                print(f'已删除：{path}')
+            deleted += 1
+        except Exception as e:
+            print(f'删除失败：{path}，原因：{e}')
+            skipped += 1
+
+print(f'\n完成。</description><guid isPermaLink="true">https://feeday.cn/post/shan-chu-zhong-fu-wen-jian.html</guid><pubDate>Thu, 14 Aug 2025 14:07:26 +0000</pubDate></item><item><title>文本合并</title><link>https://feeday.cn/post/wen-ben-he-bing.html</link><description>##  特殊格式文本合并
+```
+import os
+import chardet  # pip install chardet
+
+# 指定目录路径（修改为你的目录）
+directory = r'D:\txthb'  # 示例：r'D:\data\texts'
+
+# 输出文件路径
+output_file = os.path.join(directory, 'merged.txt')
+error_log = os.path.join(directory, 'errors.log')
+
+# 扩展常见编码列表，支持更多（如繁体Big5、UTF-16）
+common_encodings = ['utf-8', 'gbk', 'utf-8-sig', 'gb2312', 'big5', 'utf-16', 'latin1', 'cp1252']
+
+def read_file_with_encoding(file_path):
+    # 先尝试检测编码
+    with open(file_path, 'rb') as f:
+        raw_data = f.read()
+        detected = chardet.detect(raw_data)
+        encoding = detected['encoding'] if detected['encoding'] else None
+    
+    # 如果检测失败，逐个尝试常见编码
+    if not encoding:
+        for enc in common_encodings:
+            try:
+                with open(file_path, 'r', encoding=enc) as f:
+                    return f.read().strip()
+            except UnicodeDecodeError:
+                continue
+        raise ValueError(f'无法读取文件 {file_path}，编码不支持。</description><guid isPermaLink="true">https://feeday.cn/post/wen-ben-he-bing.html</guid><pubDate>Tue, 12 Aug 2025 10:27:27 +0000</pubDate></item><item><title>微软本地文字转语音</title><link>https://feeday.cn/post/wei-ruan-ben-di-wen-zi-zhuan-yu-yin.html</link><description>## HTML 版本
+```
+&lt;!DOCTYPE html&gt;
+&lt;html lang='zh-CN'&gt;
+&lt;head&gt;
+    &lt;meta charset='UTF-8'&gt;
+    &lt;meta name='viewport' content='width=device-width, initial-scale=1.0'&gt;
+    &lt;title&gt;文本转语音并播放&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;文本转语音并播放&lt;/h1&gt;
+
+    &lt;label for='textInput'&gt;请输入文本：&lt;/label&gt;&lt;br&gt;
+    &lt;textarea id='textInput' rows='4' cols='50'&gt;&lt;/textarea&gt;&lt;br&gt;&lt;br&gt;
+
+    &lt;label for='filterChinese'&gt;只显示中文语音？&lt;/label&gt;
+    &lt;input type='checkbox' id='filterChinese' checked&gt;&lt;br&gt;&lt;br&gt;
+
+    &lt;label for='voiceSelect'&gt;选择语音（音色）：&lt;/label&gt;
+    &lt;select id='voiceSelect'&gt;&lt;/select&gt;&lt;br&gt;&lt;br&gt;
+
+    &lt;button id='startButton'&gt;开始朗读&lt;/button&gt;
+    &lt;button id='stopButton'&gt;停止朗读&lt;/button&gt;
+
+    &lt;script&gt;
+        // 获取可用的语音并填充选择框
+        function populateVoiceList() {
+            const voices = speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voiceSelect');
+            const filterChinese = document.getElementById('filterChinese').checked;
+            voiceSelect.innerHTML = ''; // 清空现有选项
+
+            // 支持所有语音（更多音色），或可选过滤中文
+            let filteredVoices = voices;
+            if (filterChinese) {
+                filteredVoices = voices.filter(voice =&gt; voice.lang.startsWith('zh-')); // 支持 zh-CN, zh-TW 等
+            }
+
+            console.log('可用语音列表:', filteredVoices); // 调试：打印到控制台
+
+            if (filteredVoices.length === 0) {
+                // 如果没有语音，显示提示
+                const option = document.createElement('option');
+                option.textContent = '无可用语音（请安装TTS引擎）';
+                option.disabled = true;
+                voiceSelect.appendChild(option);
+                alert('未检测到任何可用语音。</description><guid isPermaLink="true">https://feeday.cn/post/wei-ruan-ben-di-wen-zi-zhuan-yu-yin.html</guid><pubDate>Tue, 12 Aug 2025 04:37:10 +0000</pubDate></item><item><title>视频延长</title><link>https://feeday.cn/post/shi-pin-yan-chang.html</link><description># 视频延长
+
+不满足十秒的水平正倒播放延迟十秒以上
+
+```
+import os, math
+from moviepy.editor import VideoFileClip, concatenate_videoclips, vfx
+
+# === 配置 ===
+INPUT_DIR  = r'D:\\1'   # 待处理视频目录
+OUTPUT_DIR = r'D:\2'   # 输出目录
+TARGET_SEC = 10                      # 最少目标时长（秒）
+EXTS = ('.mp4', '.mov', '.avi', '.mkv', '.m4v')
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+def build_pingpong_min_duration(clip, min_sec=10):
+    '''
+    把 clip 做成“正放+倒放”交替的 ping-pong 循环，
+    一直拼到时长 &gt;= min_sec，不截断。</description><guid isPermaLink="true">https://feeday.cn/post/shi-pin-yan-chang.html</guid><pubDate>Mon, 11 Aug 2025 04:31:45 +0000</pubDate></item><item><title>deepseek-chat-鬼故事-雾钟巷</title><link>https://feeday.cn/post/deepseek-chat--gui-gu-shi---wu-zhong-xiang.html</link><description>## 雾钟巷
+
+### 文案  
+
+'当钟声敲响第十二下，你会听见自己的心跳消失。</description><guid isPermaLink="true">https://feeday.cn/post/deepseek-chat--gui-gu-shi---wu-zhong-xiang.html</guid><pubDate>Sun, 10 Aug 2025 04:26:13 +0000</pubDate></item><item><title>指定文件夹重命名</title><link>https://feeday.cn/post/zhi-ding-wen-jian-jia-zhong-ming-ming.html</link><description>指定文件夹包含子文件夹重命名
+```
+import os
+import shutil
+import uuid
+
+def rename_image_files(directory, prefix='Real_'):
+    '''
+    遍历目录及子目录，批量重命名图像/视频文件为 前缀+编号，避免重复、覆盖、遗漏。</description><guid isPermaLink="true">https://feeday.cn/post/zhi-ding-wen-jian-jia-zhong-ming-ming.html</guid><pubDate>Fri, 08 Aug 2025 04:24:09 +0000</pubDate></item><item><title>Kontext-提示词</title><link>https://feeday.cn/post/Kontext--ti-shi-ci.html</link><description>
+
+- [https://huggingface.co/spaces/kontext-community](https://huggingface.co/spaces/kontext-community/FLUX.1-Kontext-multi-image)
+
+## 老照片修复
+```
+restore and colorize this photo. Repair the damaged white background. Maintain the consistency between the characters and the background
+```
+
+- https://zhuanlan.zhihu.com/p/1922042108895797435
+
+需求类型 | 英文模板 | 中文解析
+-- | -- | --
+对象修改 | 'Change [object] to [new state], keep [content to preserve] unchanged' | 更改 [具体对象] 为 [新的状态]，同时保持 [需要保留的内容] 不变。</description><guid isPermaLink="true">https://feeday.cn/post/Kontext--ti-shi-ci.html</guid><pubDate>Wed, 30 Jul 2025 10:02:57 +0000</pubDate></item><item><title>多个表合并</title><link>https://feeday.cn/post/duo-ge-biao-he-bing.html</link><description>### 多张格式一样的表合并成一个表
+```
+import pandas as pd
+import os
+
+# 设置文件夹路径
+folder_path = r'D:\hb  # 替换为你的CSV文件夹路径
+
+# 获取所有 CSV 文件路径
+csv_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
+
+# 合并所有 CSV 文件
+df_list = [pd.read_csv(os.path.join(folder_path, f)) for f in csv_files]
+combined_df = pd.concat(df_list, ignore_index=True)
+
+# 保存为一个新文件
+combined_df.to_csv(r'D:\hb.csv', index=False)
+
+```。</description><guid isPermaLink="true">https://feeday.cn/post/duo-ge-biao-he-bing.html</guid><pubDate>Mon, 28 Jul 2025 05:05:08 +0000</pubDate></item><item><title>文本行转表列</title><link>https://feeday.cn/post/wen-ben-xing-zhuan-biao-lie.html</link><description>
+### 运行脚本
+```
+import sys
+import subprocess
+import os
+import re
+
+# 自动安装包的函数
+def install_package(package):
+    try:
+        __import__(package)
+    except ImportError:
+        print(f'缺少包 {package}，正在安装...')
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+        print(f'{package} 安装完成。</description><guid isPermaLink="true">https://feeday.cn/post/wen-ben-xing-zhuan-biao-lie.html</guid><pubDate>Thu, 24 Jul 2025 14:56:23 +0000</pubDate></item><item><title>语言模型-API-批量生成文本</title><link>https://feeday.cn/post/yu-yan-mo-xing--API--pi-liang-sheng-cheng-wen-ben.html</link><description>文本模型批量生成文本测试
+
+## ChatGPT 
+
+第三方代理接口
+
+-  [https://openkey.cloud](https://openkey.cloud/register?aff=22CVF)
+
+### 执行脚本
+```
+from openai import OpenAI
+import time
+import csv
+import os
+from datetime import datetime
+
+# 初始化客户端
+client = OpenAI(
+    api_key='sk-x',
+    base_url='https://openkey.cloud/v1'
+)
+
+primary_classes = [
+    '案件案例', '博客文章', '个人日记', '观点', '广告文案', '技术文档',
+    '评论', '散文', '社交媒体帖子', '诗歌', '小说片段', '新闻报道', '学术论文摘要'
+]
+
+secondary_classes = [
+    'AI', '动物', '情感', '公益', '购物', '古代文明', '交通', '教育', '近代战争', '经济',
+    '科幻', '科技', '科普', '历史', '旅行', '美食', '母婴', '奇幻', '气候变化', '三农',
+    '社会问题', '摄影', '生活', '时尚', '时政', '体育', '文化', '武器', '校园', '医疗',
+    '艺术', '音乐', '影视', '游戏', '娱乐', '育儿', '职场', '植物', '商业'
+]
+
+styles = ['正式', '叙事', '情感化', '科普']
+
+category_map = {
+    '案件案例': 'Case Study',
+    '博客文章': 'Blog Article',
+    '个人日记': 'Personal Diary',
+    '观点': 'Opinion',
+    '广告文案': 'Advertising Copy',
+    '技术文档': 'Technical Document',
+    '评论': 'Review',
+    '散文': 'Essay',
+    '社交媒体帖子': 'Social Media Post',
+    '诗歌': 'Poetry',
+    '小说片段': 'Fiction Excerpt',
+    '新闻报道': 'News Report',
+    '学术论文摘要': 'Academic Abstract',
+    'AI': 'Artificial Intelligence',
+    '动物': 'Animals',
+    '情感': 'Emotion',
+    '公益': 'Public Welfare',
+    '购物': 'Shopping',
+    '古代文明': 'Ancient Civilization',
+    '交通': 'Transportation',
+    '教育': 'Education',
+    '近代战争': 'Modern War',
+    '经济': 'Economics',
+    '科幻': 'Science Fiction',
+    '科技': 'Technology',
+    '科普': 'Popular Science',
+    '历史': 'History',
+    '旅行': 'Travel',
+    '美食': 'Cuisine',
+    '母婴': 'Mother and Baby',
+    '奇幻': 'Fantasy',
+    '气候变化': 'Climate Change',
+    '三农': 'Agriculture and Rural Affairs',
+    '社会问题': 'Social Issues',
+    '摄影': 'Photography',
+    '生活': 'Lifestyle',
+    '时尚': 'Fashion',
+    '时政': 'Current Politics',
+    '体育': 'Sports',
+    '文化': 'Culture',
+    '武器': 'Weapons',
+    '校园': 'Campus',
+    '医疗': 'Medical',
+    '艺术': 'Art',
+    '音乐': 'Music',
+    '影视': 'Film and TV',
+    '游戏': 'Gaming',
+    '娱乐': 'Entertainment',
+    '育儿': 'Parenting',
+    '职场': 'Workplace',
+    '植物': 'Plants',
+    '商业': 'Business',
+    '正式': 'Formal',
+    '叙事': 'Narrative',
+    '情感化': 'Emotional',
+    '科普': 'Popular Science'
+}
+
+def char_count(text: str) -&gt; int:
+    return len(text)
+
+def generate_text(primary, secondary, style, max_retries=3):
+    primary_en = category_map.get(primary, primary)
+    secondary_en = category_map.get(secondary, secondary)
+    style_en = category_map.get(style, style)
+
+    prompt = (
+        f'Please write a coherent, well-structured English text with at least 250 characters and preferably no more than 350 characters about the following:\n'
+        f'Primary category: {primary_en}\n'
+        f'Secondary category: {secondary_en}\n'
+        f'Writing style: {style_en}\n'
+        f'Important: The entire text must be in English without any Chinese characters or words.'
+    )
+    text = ''
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model='gpt-4o-mini',
+                messages=[{'role': 'user', 'content': prompt}],
+                temperature=0.7,
+                max_tokens=900
+            )
+            text = response.choices[0].message.content.strip()
+            char_num = char_count(text)
+            if char_num &gt;= 250:
+                return text
+            else:
+                print(f'Retry {attempt} for {primary}-{secondary}-{style}, char count {char_num} &lt; 250')
+                time.sleep(1)
+        except Exception as e:
+            print(f'Error for {primary}-{secondary}-{style}: {e}')
+            time.sleep(2)
+    print(f'Max retries reached for {primary}-{secondary}-{style}, returning last result')
+    return text
+
+def write_to_csv_with_timestamp(base_name, rows, batch_size, output_dir='D:/data/output'):
+    os.makedirs(output_dir, exist_ok=True)
+    now_str = datetime.now().strftime('%Y%m%d%H%M')
+    filename = f'{base_name}_{now_str}_{batch_size}.csv'
+    full_path = os.path.join(output_dir, filename)
+    with open(full_path, 'w', newline='', encoding='utf-8-sig') as f:
+        writer = csv.writer(f)
+        writer.writerow(['编号', '一级类', '二级类', '风格', '内容', '字符数'])
+        writer.writerows(rows)
+    print(f'Saved batch of {len(rows)} records to {full_path}')
+
+def main():
+    total_tasks = len(primary_classes) * len(secondary_classes) * len(styles)
+    task_counter = 0
+    batch_size = 5  # 生成5条保存成表
+    buffer = []
+    base_name = 'generated_texts'
+    output_dir = r'C:\test'  # 你需要的输出目录，请修改为你想要的路径
+
+    for primary in primary_classes:
+        for secondary in secondary_classes:
+            for style in styles:
+                task_counter += 1
+                print(f'\n[{task_counter}/{total_tasks}] Generating: {primary} - {secondary} - {style}\n')
+                content = generate_text(primary, secondary, style)
+                char_num = char_count(content)
+                print(f'Content ({char_num} chars):\n')
+                print(content)
+                print('\n' + '='*80 + '\n')
+
+                buffer.append([task_counter, primary, secondary, style, content, char_num])
+
+                if len(buffer) &gt;= batch_size:
+                    write_to_csv_with_timestamp(base_name, buffer, batch_size, output_dir=output_dir)
+                    buffer.clear()
+
+                time.sleep(1)  # 限流防封禁
+
+    if buffer:
+        write_to_csv_with_timestamp(base_name, buffer, len(buffer), output_dir=output_dir)
+
+    print('All done!')
+
+if __name__ == '__main__':
+    main()
+```
+### 输出结果
+```
+[354/2028] Generating: 个人日记 - 科幻 - 叙事
+Generated chars: 400
+Full content:
+October 12, 2147
+
+Today, I stumbled upon an ancient device in the ruins of an old library—an old smartphone. Its screen flickered to life, revealing images of a world long gone. I felt a surge of nostalgia for a time when humans thrived on connection, not just data. As I scrolled through its apps, I wondered what stories lay hidden in its memory, waiting to bridge the gap between past and present.
+```
+
+## DeepSeek
+- [https://platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys)
+### 运行脚本
+```
+from openai import OpenAI
+import time
+import csv
+import os
+from datetime import datetime
+
+# 初始化客户端，替换成 DeepSeek 的 base_url 和 api_key
+client = OpenAI(
+    api_key='sk-x',  # 这里换成你在 DeepSeek 申请的 API Key
+    base_url='https://api.deepseek.com'    # DeepSeek API 地址，带/v1也可以
+)
+
+primary_classes = [
+    '案件案例', '博客文章', '个人日记', '观点', '广告文案', '技术文档',
+    '评论', '散文', '社交媒体帖子', '诗歌', '小说片段', '新闻报道', '学术论文摘要'
+]
+
+secondary_classes = [
+    'AI', '动物', '情感', '公益', '购物', '古代文明', '交通', '教育', '近代战争', '经济',
+    '科幻', '科技', '科普', '历史', '旅行', '美食', '母婴', '奇幻', '气候变化', '三农',
+    '社会问题', '摄影', '生活', '时尚', '时政', '体育', '文化', '武器', '校园', '医疗',
+    '艺术', '音乐', '影视', '游戏', '娱乐', '育儿', '职场', '植物', '商业'
+]
+
+styles = ['正式', '叙事', '情感化', '科普']
+
+def generate_text(primary: str, secondary: str, style: str, max_retries=3) -&gt; str:
+    prompt = (
+        f'Please write an English text about the following topic.\n'
+        f'The text must be coherent and well-structured,\n'
+        f'with at least 200 characters. Avoid making the text too long.\n\n'
+        f'Primary category: {primary}\n'
+        f'Secondary category: {secondary}\n'
+        f'Writing style: {style}'
+    )
+    text = ''
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model='deepseek-chat',
+                messages=[{'role': 'user', 'content': prompt}],
+                temperature=0.7,
+                max_tokens=500  # 允许稍长文本，模型自动控制长度
+            )
+            text = response.choices[0].message.content.strip()
+            length = len(text)
+            if length &gt;= 200:
+                return text.replace('\n', ' ')
+            else:
+                print(f'Retry {attempt} for {primary} - {secondary} - {style}: char count {length} &lt; 200')
+                time.sleep(1)
+        except Exception as e:
+            print(f'Error on {primary} - {secondary} - {style}: {e}')
+            time.sleep(2)
+
+    print(f'Max retries reached for {primary} - {secondary} - {style}. Returning last result.')
+    if text:
+        return text.replace('\n', ' ')
+    return ''
+
+def save_batch_to_csv(rows, batch_num, base_name='deepseek_output', output_dir='output'):
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    filename = f'{base_name}_{timestamp}_batch{batch_num}.csv'
+    filepath = os.path.join(output_dir, filename)
+    with open(filepath, mode='w', encoding='utf-8-sig', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['编号', '一级类', '二级类', '风格', '内容', '字符数'])
+        writer.writerows(rows)
+    print(f'Saved batch {batch_num} with {len(rows)} records to {filepath}')
+
+def main():
+    total_tasks = len(primary_classes) * len(secondary_classes) * len(styles)
+    task_counter = 0
+    batch_size = 5  # 生成5条保存成表
+    batch_data = []
+    batch_number = 1
+    base_name = 'deepseek_output'
+    output_dir = r'c:\test'  # 修改成你想保存的路径
+
+    for primary in primary_classes:
+        for secondary in secondary_classes:
+            for style in styles:
+                task_counter += 1
+                print(f'\n[{task_counter}/{total_tasks}] Generating: {primary} - {secondary} - {style}\n')
+                content = generate_text(primary, secondary, style)
+                length = len(content)
+                print(f'Content ({length} characters):\n')
+                print(content)
+                print('\n' + '='*100 + '\n')
+
+                batch_data.append([task_counter, primary, secondary, style, content, length])
+
+                if len(batch_data) &gt;= batch_size:
+                    save_batch_to_csv(batch_data, batch_number, base_name, output_dir)
+                    batch_data.clear()
+                    batch_number += 1
+
+                time.sleep(1)  # 避免请求过快被限流
+
+    if batch_data:
+        save_batch_to_csv(batch_data, batch_number, base_name, output_dir)
+
+    print('All tasks completed.')
+
+if __name__ == '__main__':
+    main()
+```
+### 输出结果
+```
+[15/2028] Generating: 案件案例 - 公益 - 情感化
+
+Content (827 characters):
+
+**A Beacon of Hope: The Power of Compassion in Legal Cases**    In the midst of cold courtrooms and rigid laws, some cases shine as reminders of humanity’s warmth. Take the story of an elderly woman evicted unfairly—her plight moved strangers to crowdfund her legal fees. Or the pro bono lawyers who fought for a child’s right to education against all odds. These stories aren’t just about justice; they’re about hearts uniting to lift others up.    Every such case whispers a truth: the law is stronger when wrapped in kindness. Behind every docket number is a life, and behind every verdict, a chance to heal. Let’s celebrate these unsung heroes—the donors, volunteers, and advocates—who turn legal battles into triumphs of empathy. Because justice, when paired with love, doesn’t just win—it transforms.    (Characters: 598)
+```
+## Kimi 
+
+-  [https://platform.moonshot.cn/console/api-keys](https://platform.moonshot.cn/console/api-keys)
+
+### 执行脚本
+```
+from openai import OpenAI
+import time
+import csv
+import os
+from datetime import datetime
+
+# === 模型选择 ===
+USE_MODEL = 'moonshot'
+
+# === 初始化客户端（Moonshot 中文）===
+client = OpenAI(
+    api_key='sk-xxx',  # ← 替换为你的 API Key
+    base_url='https://api.moonshot.cn/v1'
+)
+
+
+
+model_name = 'kimi-k2-0711-preview'
+system_prompt = (
+    '你是 Kimi，由 Moonshot AI 提供的人工智能助手。</description><guid isPermaLink="true">https://feeday.cn/post/yu-yan-mo-xing--API--pi-liang-sheng-cheng-wen-ben.html</guid><pubDate>Thu, 24 Jul 2025 14:11:48 +0000</pubDate></item><item><title>筛出文件指定比例的文件</title><link>https://feeday.cn/post/shai-chu-wen-jian-zhi-ding-bi-li-de-wen-jian.html</link><description>筛出文件指定比例的文件
+```
+import os
+import shutil
+import random
+
+# 设置源目录和目标目录
+source_dir = r'G:\trian'
+target_dir = r'G:\test'
+move_percent = 10  # 百分比
+
+# 遍历一级子文件夹
+for subfolder in os.listdir(source_dir):
+    subfolder_path = os.path.join(source_dir, subfolder)
+    if not os.path.isdir(subfolder_path):
+        continue  # 跳过非文件夹项
+
+    # 收集该子文件夹下所有文件（递归）
+    all_files = []
+    for root, _, files in os.walk(subfolder_path):
+        for file in files:
+            full_path = os.path.join(root, file)
+            all_files.append(full_path)
+
+    # 随机选取百分比文件
+    total = len(all_files)
+    if total == 0:
+        continue
+
+    move_count = max(1, int(total * move_percent / 100))
+    selected_files = random.sample(all_files, move_count)
+
+    # 执行移动
+    for file_path in selected_files:
+        rel_path = os.path.relpath(file_path, source_dir)
+        dest_path = os.path.join(target_dir, rel_path)
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        shutil.move(file_path, dest_path)
+        print(f'Moved: {file_path} → {dest_path}')
+
+print(f'\n✅ 每个子文件夹已随机移动约 {move_percent}% 文件。</description><guid isPermaLink="true">https://feeday.cn/post/shai-chu-wen-jian-zhi-ding-bi-li-de-wen-jian.html</guid><pubDate>Wed, 23 Jul 2025 04:51:37 +0000</pubDate></item><item><title>视频提取图像</title><link>https://feeday.cn/post/shi-pin-ti-qu-tu-xiang.html</link><description>视频提取图像
+```
+import cv2
+import os
+
+def extract_frames(video_path, output_folder):
+    # 获取视频文件名并用作输出文件夹的名称（去掉扩展名）
+    video_name = os.path.splitext(os.path.basename(video_path))[0]
+    video_output_folder = os.path.join(output_folder, video_name)
+    
+    # 创建输出文件夹（如果不存在）
+    os.makedirs(video_output_folder, exist_ok=True)
+
+    # 打开视频文件
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print(f'无法打开视频文件：{video_path}')
+        return
+
+    # 获取视频的帧率（FPS）
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    print(f'视频帧率：{fps} FPS')
+
+    # 获取视频的总帧数
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    print(f'视频总帧数：{total_frames}')
+
+    # 遍历视频中的每一帧
+    for frame_num in range(total_frames):
+        ret, frame = cap.read()
+        if not ret:
+            print(f'无法读取第 {frame_num} 帧')
+            break
+
+        # 每秒提取一帧
+        if frame_num % int(fps) == 0:
+            # 获取当前帧的时间戳（秒）
+            timestamp = frame_num // int(fps)
+            # 构造输出图像的文件路径
+            output_path = os.path.join(video_output_folder, f'frame_{timestamp:04d}.jpg')
+            # 保存当前帧为图像文件
+            if frame is not None:
+                cv2.imwrite(output_path, frame)
+                print(f'已保存：{output_path}')
+            else:
+                print(f'第 {timestamp} 秒图像为空，跳过保存。</description><guid isPermaLink="true">https://feeday.cn/post/shi-pin-ti-qu-tu-xiang.html</guid><pubDate>Wed, 23 Jul 2025 04:50:00 +0000</pubDate></item><item><title>筛查重复或类似图像</title><link>https://feeday.cn/post/shai-cha-zhong-fu-huo-lei-si-tu-xiang.html</link><description>筛查重复或类似图像
+```
+import subprocess
+import sys
+import os
+import cv2
+import numpy as np
+from keras.applications.resnet50 import ResNet50, preprocess_input
+from sklearn.metrics.pairwise import cosine_similarity  # 用于余弦相似度
+
+# pip 安装 scikit-learn
+def install_package(package):
+    try:
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+        print(f'{package} 安装成功！')
+    except subprocess.CalledProcessError as e:
+        print(f'安装失败: {e}')
+
+# 确保安装 scikit-learn
+install_package('scikit-learn')
+
+# 提取图片特征
+def extract_image_features(image_path):
+    if not os.path.exists(image_path):  # 检查文件是否存在
+        print(f'文件不存在: {image_path}')
+        return None
+    
+    image = cv2.imread(image_path)  # 读取图片
+    if image is None:  # 检查图片是否加载成功
+        print(f'无法读取图片: {image_path}')
+        return None  # 如果读取失败，返回None
+    image = cv2.resize(image, (256, 256))  # 缩放图片到统一尺寸
+    image = image[16:240, 16:240]  # 裁剪中间区域(224x224)
+    
+    image = np.expand_dims(image, axis=0)  # 扩展维度以匹配模型输入要求
+    image = preprocess_input(image)  # 预处理图片
+    
+    features = model.predict(image)  # 提取特征向量
+    features /= np.linalg.norm(features)  # 归一化特征向量
+    
+    print(f'特征向量: {features.flatten()}')  # 打印特征向量，看看是否有差异
+    return features.flatten()  # 平铺特征向量
+
+# 移动重复图片到指定文件夹
+def move_duplicate_images(directory, output_directory, use_cosine_similarity=True):
+    current_dir = directory  # 使用传入的目录路径
+    files = [f for f in os.listdir(current_dir) if os.path.isfile(os.path.join(current_dir, f))]  # 获取目录下的所有文件
+    
+    image_features = {}
+    moved_count = 0  # 记录移动的图片数量
+    duplicate_pairs = []  # 用于保存重复图片的文件名对
+
+    # 确保输出目录存在
+    if not os.path.exists(output_directory):  # 如果目录不存在，创建它
+        os.makedirs(output_directory)
+
+    for file_name in files:
+        if file_name.endswith('.jpg') or file_name.endswith('.png'):  # 筛选出图片文件
+            file_path = os.path.join(current_dir, file_name)
+            image_feature = extract_image_features(file_path)
+
+            if image_feature is None:  # 如果读取失败，跳过此文件
+                continue
+
+            is_duplicate = False
+            for existing_path, existing_feature in image_features.items():
+                if use_cosine_similarity:
+                    # 使用余弦相似度计算相似度
+                    similarity = cosine_similarity([existing_feature], [image_feature])[0][0]
+                    print(f'计算相似度: {similarity}')  # 打印计算出的相似度
+
+                    if similarity &gt; 0.8:  # 设置相似度阈值，值越接近1说明越相似
+                        is_duplicate = True
+                        print(f'移动重复图片: {file_path}')
+                        # 移动文件到指定文件夹
+                        new_path = os.path.join(output_directory, file_name)
+                        os.rename(file_path, new_path)  # 移动文件
+                        moved_count += 1
+                        # 记录重复的文件名对 (当前文件名和已有文件名)
+                        duplicate_pairs.append((file_name, os.path.basename(existing_path)))
+                        break
+                else:
+                    # 使用欧氏距离计算相似度
+                    distance = np.linalg.norm(existing_feature - image_feature)  # 计算欧氏距离
+                    print(f'计算距离: {distance}')  # 打印计算出的欧氏距离
+                    if distance &lt; 0.6:  # 删除类似图像 0.6  删除重复图像 0.1
+                        is_duplicate = True
+                        print(f'移动重复图片: {file_path}')
+                        # 移动文件到指定文件夹
+                        new_path = os.path.join(output_directory, file_name)
+                        os.rename(file_path, new_path)  # 移动文件
+                        moved_count += 1
+                        # 记录重复的文件名对 (当前文件名和已有文件名)
+                        duplicate_pairs.append((file_name, os.path.basename(existing_path)))
+                        break
+
+            if not is_duplicate:
+                image_features[file_path] = image_feature
+
+    # 将重复图片文件名对保存到txt文件
+    output_file = os.path.join(output_directory, 'duplicate_images.txt')  # 设置输出文件路径
+    if duplicate_pairs:
+        with open(output_file, 'w') as f:
+            for file1, file2 in duplicate_pairs:
+                f.write(f'{file1} 与 {file2} 重复或类似\n')
+
+    print('已移动 {} 张重复图片'.format(moved_count))
+
+# 加载预训练的ResNet50模型
+model = ResNet50(weights='imagenet', include_top=False, pooling='avg')
+
+# 指定目录路径，设置是否使用余弦相似度
+input_directory = r'D:\test\img'  # 图片所在文件夹
+output_directory = r'D:\test\img2'  # 自定义保存重复图片的文件夹
+
+move_duplicate_images(input_directory, output_directory, use_cosine_similarity=False)  # 设置为True使用余弦相似度判断两个图片的特征方向是否相似，设置为False移除重复图像
+```。</description><guid isPermaLink="true">https://feeday.cn/post/shai-cha-zhong-fu-huo-lei-si-tu-xiang.html</guid><pubDate>Wed, 23 Jul 2025 04:47:45 +0000</pubDate></item><item><title>图像直方图在线调节</title><link>https://feeday.cn/post/tu-xiang-zhi-fang-tu-zai-xian-diao-jie.html</link><description>```
+&lt;!DOCTYPE html&gt;
+&lt;html lang='zh-CN'&gt;
+&lt;head&gt;
+&lt;meta charset='UTF-8'&gt;
+&lt;title&gt;在线图像直方图与调整&lt;/title&gt;
+&lt;style&gt;
+body { font-family: sans-serif; padding: 20px; max-width: 1000px; margin: auto; }
+#controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+.control-group { display: flex; align-items: center; }
+.control-group label { width: 80px; }
+.control-group input[type=range] { flex: 1; margin: 0 10px; }
+.control-group input[type=number] { width: 60px; }
+canvas { border: 1px solid #ccc; display: block; margin-bottom: 20px; }
+&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h2&gt;在线图像直方图与调整&lt;/h2&gt;
+&lt;input type='file' id='fileInput' accept='image/*'&gt;
+&lt;div id='controls'&gt;
+&lt;div class='control-group'&gt;
+&lt;label for='exposureRange'&gt;曝光&lt;/label&gt;
+&lt;input type='range' id='exposureRange' min='-2' max='2' step='0.1' value='0'&gt;
+&lt;input type='number' id='exposureNumber' min='-2' max='2' step='0.1' value='0'&gt;
+&lt;/div&gt;
+&lt;div class='control-group'&gt;
+&lt;label for='contrastRange'&gt;对比度&lt;/label&gt;
+&lt;input type='range' id='contrastRange' min='-1' max='1' step='0.05' value='0'&gt;
+&lt;input type='number' id='contrastNumber' min='-1' max='1' step='0.05' value='0'&gt;
+&lt;/div&gt;
+&lt;div class='control-group'&gt;
+&lt;label for='highlightsRange'&gt;高光&lt;/label&gt;
+&lt;input type='range' id='highlightsRange' min='-1' max='1' step='0.05' value='0'&gt;
+&lt;input type='number' id='highlightsNumber' min='-1' max='1' step='0.05' value='0'&gt;
+&lt;/div&gt;
+&lt;div class='control-group'&gt;
+&lt;label for='shadowsRange'&gt;阴影&lt;/label&gt;
+&lt;input type='range' id='shadowsRange' min='-1' max='1' step='0.05' value='0'&gt;
+&lt;input type='number' id='shadowsNumber' min='-1' max='1' step='0.05' value='0'&gt;
+&lt;/div&gt;
+&lt;div class='control-group'&gt;
+&lt;label for='whitesRange'&gt;白色&lt;/label&gt;
+&lt;input type='range' id='whitesRange' min='-1' max='1' step='0.05' value='0'&gt;
+&lt;input type='number' id='whitesNumber' min='-1' max='1' step='0.05' value='0'&gt;
+&lt;/div&gt;
+&lt;div class='control-group'&gt;
+&lt;label for='blacksRange'&gt;黑色&lt;/label&gt;
+&lt;input type='range' id='blacksRange' min='-1' max='1' step='0.05' value='0'&gt;
+&lt;input type='number' id='blacksNumber' min='-1' max='1' step='0.05' value='0'&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;canvas id='previewCanvas' width='800' height='600'&gt;&lt;/canvas&gt;
+&lt;canvas id='histCanvas' width='800' height='200'&gt;&lt;/canvas&gt;
+
+&lt;!-- 引入 Chart.js --&gt;
+&lt;script src='https://cdn.jsdelivr.net/npm/chart.js'&gt;&lt;/script&gt;
+&lt;script&gt;
+let originalImageData = null;
+const previewCanvas = document.getElementById('previewCanvas');
+const previewCtx = previewCanvas.getContext('2d');
+const histCanvas = document.getElementById('histCanvas');
+const histCtx = histCanvas.getContext('2d');
+let histChart = null;
+
+// 读取控件元素
+const controls = ['exposure','contrast','highlights','shadows','whites','blacks'];
+const state = {};
+controls.forEach(name =&gt; {
+state[name] = 0;
+const rangeEl = document.getElementById(name + 'Range');
+const numEl = document.getElementById(name + 'Number');
+// 同步滑块和数字
+rangeEl.addEventListener('input', () =&gt; { numEl.value = rangeEl.value; updateState(); });
+numEl.addEventListener('input', () =&gt; { rangeEl.value = numEl.value; updateState(); });
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) =&gt; {
+const file = e.target.files[0];
+if (!file) return;
+const img = new Image();
+img.onload = () =&gt; {
+// 调整画布大小
+previewCanvas.width = img.width;
+previewCanvas.height = img.height;
+previewCtx.drawImage(img, 0, 0);
+originalImageData = previewCtx.getImageData(0, 0, img.width, img.height);
+applyAdjustments();
+};
+img.src = URL.createObjectURL(file);
+});
+
+function updateState() {
+controls.forEach(name =&gt; {
+state[name] = parseFloat(document.getElementById(name + 'Number').value);
+});
+applyAdjustments();
+}
+
+function applyAdjustments() {
+if (!originalImageData) return;
+const imgData = new ImageData(
+new Uint8ClampedArray(originalImageData.data),
+originalImageData.width,
+originalImageData.height
+);
+const data = imgData.data;
+const {exposure, contrast, highlights, shadows, whites, blacks} = state;
+for (let i = 0; i &lt; data.length; i += 4) {
+let r = data[i] / 255;
+let g = data[i+1] / 255;
+let b = data[i+2] / 255;
+// 亮度
+const lum = 0.2126*r + 0.7152*g + 0.0722*b;
+// 曝光：2^EV
+const evFactor = Math.pow(2, exposure);
+r *= evFactor; g *= evFactor; b *= evFactor;
+// 对比度
+const cFactor = contrast + 1;
+r = (r - 0.5) * cFactor + 0.5;
+g = (g - 0.5) * cFactor + 0.5;
+b = (b - 0.5) * cFactor + 0.5;
+// 高光/阴影
+if (lum &gt; 0.5) {
+const factor = (lum - 0.5) * 2;
+r += highlights * factor;
+g += highlights * factor;
+b += highlights * factor;
+} else {
+const factor = (0.5 - lum) * 2;
+r += shadows * factor;
+g += shadows * factor;
+b += shadows * factor;
+}
+// 白色/黑色剪切
+if (lum &gt; 0.8) {
+const factor = (lum - 0.8) * 5;
+r += whites * factor; g += whites * factor; b += whites * factor;
+}
+if (lum &lt; 0.2) {
+const factor = (0.2 - lum) * 5;
+r -= blacks * factor; g -= blacks * factor; b -= blacks * factor;
+}
+// 限幅
+data[i]   = Math.min(255, Math.max(0, r * 255));
+data[i+1] = Math.min(255, Math.max(0, g * 255));
+data[i+2] = Math.min(255, Math.max(0, b * 255));
+}
+// 更新预览
+previewCtx.putImageData(imgData, 0, 0);
+updateHistogram(imgData);
+}
+
+function updateHistogram(imageData) {
+const bins = 256;
+const counts = new Array(bins).fill(0);
+const data = imageData.data;
+for (let i = 0; i &lt; data.length; i += 4) {
+// 灰度值
+const lum = Math.round(0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2]);
+counts[lum]++;
+}
+const labels = counts.map((_,i) =&gt; i);
+if (!histChart) {
+histChart = new Chart(histCtx, {
+type: 'bar',
+data: {
+labels,
+datasets: [{ label: '像素数', data: counts, backgroundColor: 'rgba(0,0,0,0.5)' }]
+},
+options: {
+responsive: true,
+scales: { x: { display: false }, y: { beginAtZero: true } },
+plugins: { legend: { display: false } }
+}
+});
+} else {
+histChart.data.datasets[0].data = counts;
+histChart.update();
+}
+}
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+````。</description><guid isPermaLink="true">https://feeday.cn/post/tu-xiang-zhi-fang-tu-zai-xian-diao-jie.html</guid><pubDate>Sun, 20 Jul 2025 04:49:40 +0000</pubDate></item><item><title>图像分类脚本</title><link>https://feeday.cn/post/tu-xiang-fen-lei-jiao-ben.html</link><description>## ResNet50
+```
+import subprocess
+import sys
+
+# 自动安装依赖
+def install_packages():
+    packages = ['torch', 'torchvision', 'pillow', 'pandas', 'openpyxl', 'requests']
+    for pkg in packages:
+        try:
+            __import__(pkg)
+        except ImportError:
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', pkg])
+
+install_packages()
+
+# === 导入依赖 ===
+import os
+import shutil
+import torch
+from torchvision import models, transforms
+from PIL import Image
+import pandas as pd
+from collections import defaultdict
+import requests
+
+# === 图像预处理（ImageNet）===
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
+])
+
+# === 加载 ResNet50 模型 ===
+model = models.resnet50(pretrained=True)
+model.eval()
+
+# === 加载类别标签 ===
+# https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt
+
+LABELS_PATH = r'g:\Dataset\Image\COCO_Annotations\imagenet_classes.txt'
+with open(LABELS_PATH, 'r', encoding='utf-8') as f:
+    labels = f.read().strip().split('\n')
+
+
+# === 单张图像分类 ===
+def classify_image(image_path):
+    image = Image.open(image_path).convert('RGB')
+    input_tensor = transform(image).unsqueeze(0)
+    with torch.no_grad():
+        output = model(input_tensor)
+        probs = torch.nn.functional.softmax(output[0], dim=0)
+        top1_prob, top1_class = torch.topk(probs, 1)
+    return labels[top1_class.item()], top1_prob.item()
+
+# === 分类主流程 ===
+def organize_images_by_class(src_dir, dst_dir):
+    records = []
+    class_counts = defaultdict(int)
+
+    for fname in os.listdir(src_dir):
+        if not fname.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.png')):
+            continue
+
+        img_path = os.path.join(src_dir, fname)
+        predicted_class, prob = classify_image(img_path)
+        class_folder = os.path.join(dst_dir, predicted_class)
+        os.makedirs(class_folder, exist_ok=True)
+
+        shutil.copy(img_path, os.path.join(class_folder, fname))
+        records.append({
+            '文件名': fname,
+            '预测类别': predicted_class,
+            '置信度': round(prob, 4)
+        })
+        class_counts[predicted_class] += 1
+
+    # 保存结果到 Excel
+    df = pd.DataFrame(records)
+    count_df = pd.DataFrame([
+        {'预测类别': k, '图片数量': v}
+        for k, v in sorted(class_counts.items(), key=lambda x: -x[1])
+    ])
+    output_excel = os.path.join(dst_dir, 'result.xlsx')
+    with pd.ExcelWriter(output_excel) as writer:
+        df.to_excel(writer, index=False, sheet_name='分类结果')
+        count_df.to_excel(writer, index=False, sheet_name='类别汇总')
+
+    print(f'\n✅ 分类完成，结果保存在 {output_excel}')
+    print(f'📁 分类后的文件位于: {dst_dir}')
+
+# === 命令行入口 ===
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='对图像进行分类并复制到对应类别目录')
+    parser.add_argument('--src', default=r'G:\Dataset\Image\images', help='原始图像路径')
+    parser.add_argument('--dst', default=r'G:\Dataset\Image\tag', help='分类结果保存路径')
+    args = parser.parse_args()
+
+    organize_images_by_class(args.src, args.dst)
+```。</description><guid isPermaLink="true">https://feeday.cn/post/tu-xiang-fen-lei-jiao-ben.html</guid><pubDate>Sun, 20 Jul 2025 04:49:00 +0000</pubDate></item><item><title>typecho 密码忘记密码 sqlite 数据库</title><link>https://feeday.cn/post/typecho%20-mi-ma-wang-ji-mi-ma-%20sqlite%20-shu-ju-ku.html</link><description>博客忘记了密码可以用以下方法找回密码。</description><guid isPermaLink="true">https://feeday.cn/post/typecho%20-mi-ma-wang-ji-mi-ma-%20sqlite%20-shu-ju-ku.html</guid><pubDate>Sun, 20 Jul 2025 04:48:22 +0000</pubDate></item><item><title>在线文件加密解密</title><link>https://feeday.cn/post/zai-xian-wen-jian-jia-mi-jie-mi.html</link><description>huggingface  spaces gradio
+
+## requirements.txt
+```
+gradio
+cryptography
+```
+
+## app.py
+
+```
+import gradio as gr
+from cryptography.fernet import Fernet
+import os
+
+# AES 加密函数（Fernet 实现）
+def encrypt_file_gr(file):
+    file_path = file.name
+    key = Fernet.generate_key()
+    cipher = Fernet(key)
+    with open(file_path, 'rb') as f:
+        data = f.read()
+    encrypted_data = cipher.encrypt(data)
+    enc_path = file_path + '.enc'
+    with open(enc_path, 'wb') as f:
+        f.write(encrypted_data)
+    return key.decode(), enc_path
+
+# AES 解密函数，恢复原始文件名和格式
+def decrypt_file_gr(file, key):
+    file_path = file.name
+    cipher = Fernet(key.encode())
+    try:
+        with open(file_path, 'rb') as f:
+            encrypted_data = f.read()
+        decrypted_data = cipher.decrypt(encrypted_data)
+        # 去掉 .enc 后缀，恢复原始文件名
+        if file_path.lower().endswith('.enc'):
+            dec_path = file_path[:-4]
+        else:
+            dec_path = file_path + '.dec'
+        with open(dec_path, 'wb') as f:
+            f.write(decrypted_data)
+        return dec_path
+    except Exception:
+        return None
+
+# Gradio 界面设计
+with gr.Blocks() as demo:
+    gr.Markdown('# 文件加密解密工具')
+
+    with gr.Tab('加密'):
+        encrypt_in = gr.File(label='上传文件')
+        encrypt_btn = gr.Button('加密文件 🔒')
+        # 文本框显示密钥并提供复制按钮
+        encrypt_key = gr.Textbox(label='生成的密钥', interactive=False, show_copy_button=True)
+        encrypt_out = gr.File(label='下载加密文件 (.enc)')
+        encrypt_btn.click(
+            fn=encrypt_file_gr,
+            inputs=encrypt_in,
+            outputs=[encrypt_key, encrypt_out]
+        )
+
+    with gr.Tab('解密'):
+        decrypt_in = gr.File(label='上传加密文件 (.enc)')
+        decrypt_key_in = gr.Textbox(label='输入密钥')
+        decrypt_btn = gr.Button('解密文件 🔓')
+        decrypt_out = gr.File(label='下载解密文件（原始格式）')
+        decrypt_btn.click(
+            fn=decrypt_file_gr,
+            inputs=[decrypt_in, decrypt_key_in],
+            outputs=decrypt_out
+        )
+
+if __name__ == '__main__':
+    demo.launch()
+```。</description><guid isPermaLink="true">https://feeday.cn/post/zai-xian-wen-jian-jia-mi-jie-mi.html</guid><pubDate>Sun, 20 Jul 2025 04:47:52 +0000</pubDate></item><item><title>视频提取图像</title><link>https://feeday.cn/post/shi-pin-ti-qu-tu-xiang.html</link><description>```
+import os
+import cv2
+from pathlib import Path
+
+# 指定视频所在目录
+video_dir = r'c:\video'  # 修改为你的视频目录
+output_dir = r'c:\img'  # 保存图片的目录
+
+# 每秒提取帧数
+frames_per_second = 1  # 每秒提取1帧
+
+# 确保输出目录存在
+Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+# 遍历指定目录中的所有文件
+for filename in os.listdir(video_dir):
+    if filename.endswith(('.mp4', '.avi', '.mov', '.mkv')):  # 根据视频格式调整
+        video_path = os.path.join(video_dir, filename)
+
+        # 使用 OpenCV 打开视频文件
+        cap = cv2.VideoCapture(video_path)
+
+        # 获取视频的帧率
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        print(f'视频 {filename} 的帧率: {fps} 帧/秒')
+
+        frame_count = 0
+        saved_frame_count = 0
+
+        while True:
+            ret, frame = cap.read()
+
+            # 如果读取成功
+            if ret:
+                frame_count += 1
+
+                # 每隔一定帧数（根据fps计算每秒提取1帧）
+                if frame_count % int(fps / frames_per_second) == 0:
+                    # 使用 pathlib 处理路径和文件名
+                    image_filename = Path(filename).stem + f'_{saved_frame_count + 1}.jpg'
+                    image_path = Path(output_dir) / image_filename
+
+                    # 保存图片
+                    cv2.imwrite(str(image_path), frame)
+                    saved_frame_count += 1
+                    print(f'保存图片：{image_path}')
+            else:
+                break  # 如果没有更多帧可读取，跳出循环
+
+        # 释放视频对象
+        cap.release()
+
+print('所有视频的帧提取完毕。</description><guid isPermaLink="true">https://feeday.cn/post/shi-pin-ti-qu-tu-xiang.html</guid><pubDate>Sun, 20 Jul 2025 04:47:14 +0000</pubDate></item><item><title>导出docx文档里的图像</title><link>https://feeday.cn/post/dao-chu-docx-wen-dang-li-de-tu-xiang.html</link><description>## 执行结果
+```
+f:/doc/
+│
+├── document1.docx
+├── document2.docx
+└── document3.docx
+```
+
+```
+f:/doc/png/
+│
+├── document1/
+│   ├── document1.txt      # Contains the extracted text (e.g., '图片简介：description text')
+│   ├── document1_000001.png  # Image extracted from the document, renamed based on the corresponding text
+│   ├── document1_000002.png  # Another image
+│   └── document1_000003.png  # Another image
+│
+├── document2/
+│   ├── document2.txt
+│   ├── document2_000001.png
+│   ├── document2_000002.png
+│   └── document2_000003.png
+│
+└── document3/
+    ├── document3.txt
+    ├── document3_000001.png
+    ├── document3_000002.png
+    └── document3_000003.png
+```
+
+
+##  完整代码
+```
+from docx import Document
+import os
+import re
+import shutil
+ 
+# pip install python-docx
+# pip install lxml  # 通常不必需，除非在安装 python-docx 后出现问题
+ 
+ 
+def get_picture(document, paragraph):
+    '''
+    从段落中获取图片
+    '''
+    img = paragraph._element.xpath('.//pic:pic')
+    if not img:
+        return None
+    img = img[0]
+    embed = img.xpath('.//a:blip/@r:embed')[0]
+    related_part = document.part.related_parts[embed]
+    image = related_part.image
+    return image
+ 
+def extract_content(docx_path, output_dir):
+    try:
+        doc = Document(docx_path)
+        base_filename = os.path.splitext(os.path.basename(docx_path))[0]
+        doc_output_dir = os.path.join(output_dir, base_filename)
+        os.makedirs(doc_output_dir, exist_ok=True)
+        shutil.copy(docx_path, doc_output_dir)
+ 
+        extracted_text = []
+        extracted_images = []
+ 
+        for para in doc.paragraphs:
+            match = re.search(r'图片简介：(.*)', para.text)
+            if match:
+                violation_text = match.group(1).strip() if match.group(1).strip() else 'XXX'
+                extracted_text.append(violation_text)
+ 
+            image = get_picture(doc, para)
+            if image:
+                blob = image.blob
+                image_index = len(extracted_images) + 1
+                formatted_index = f'{image_index:06d}'
+                img_path = os.path.join(doc_output_dir, f'{base_filename}_{formatted_index}.png')
+                extracted_images.append(img_path)
+                with open(img_path, 'wb') as f:
+                    f.write(blob)
+ 
+        if extracted_text:
+            text_filename = f'{base_filename}.txt'
+            text_path = os.path.join(doc_output_dir, text_filename)
+            with open(text_path, 'w', encoding='utf-8') as text_file:
+                text_file.write('\n'.join(extracted_text))
+            rename_images_based_on_text(doc_output_dir, text_path, extracted_images)
+ 
+    except Exception as e:
+        print(f'Error processing {docx_path}: {e}')
+ 
+def rename_images_based_on_text(output_dir, text_file_path, extracted_images):
+    with open(text_file_path, 'r', encoding='utf-8') as file:
+        lines = file.readlines()
+ 
+    if len(extracted_images) != len(lines):
+        print(f'Error: The number of images ({len(extracted_images)}) and text lines ({len(lines)}) do not match in {output_dir}.')
+        return
+ 
+    for image_path, line in zip(extracted_images, lines):
+        new_image_name = f'{os.path.splitext(image_path)[0]}_{line.strip()}{os.path.splitext(image_path)[1]}'
+        os.rename(image_path, new_image_name)
+        print(f'Renamed '{image_path}' to '{new_image_name}'')
+ 
+def process_documents(folder_path, output_folder):
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    for filename in os.listdir(folder_path):
+        if filename.endswith('.docx') or filename.endswith('.doc'):
+            docx_path = os.path.join(folder_path, filename)
+            extract_content(docx_path, output_folder)
+ 
+# 示例用法
+folder_path = 'f:/doc'
+output_folder = 'f:/doc/png'
+process_documents(folder_path, output_folder)
+```。</description><guid isPermaLink="true">https://feeday.cn/post/dao-chu-docx-wen-dang-li-de-tu-xiang.html</guid><pubDate>Sun, 20 Jul 2025 04:46:40 +0000</pubDate></item><item><title>创建指定大小文件</title><link>https://feeday.cn/post/chuang-jian-zhi-ding-da-xiao-wen-jian.html</link><description>运行 cmd 执行创建文本文件
+
+```
+fsutil file createnew f:\1GB.txt 1073741824
+```
+
+换算单位
+
+```
+byte (B):1073741824
+kilobyte (kB):1048576
+megabyte (MB):1024
+gigabyte (GB):	1
+```。</description><guid isPermaLink="true">https://feeday.cn/post/chuang-jian-zhi-ding-da-xiao-wen-jian.html</guid><pubDate>Sun, 20 Jul 2025 04:46:02 +0000</pubDate></item><item><title>获取网页链接</title><link>https://feeday.cn/post/huo-qu-wang-ye-lian-jie.html</link><description>控制台浏览器获取网址
+
+## bilibili
+```
+const links = document.getElementsByTagName('a');
+// 遍历所有链接并查找匹配的网址
+for (const link of links) {
+  const href = link.href;
+  // 使用正则表达式匹配类似的网址
+  const urlRegex = /https:\/\/www\.bilibili\.com\/video\/[A-Za-z0-9]+\/?/;
+  if (urlRegex.test(href)) {
+    console.log('匹配到的网址: ' + href);
+  }
+}
+```
+
+## youtube
+
+```
+const links = document.getElementsByTagName('a');
+
+// 遍历所有链接并查找匹配的网址
+for (const link of links) {
+  const href = link.href;
+  // 使用正则表达式匹配 YouTube 视频链接
+  const urlRegex = /https:\/\/www\.youtube\.com\/watch\?v=[A-Za-z0-9_-]+/;
+  if (urlRegex.test(href)) {
+    console.log('匹配到的网址: ' + href);
+  }
+}
+```
+## dataset
+```
+const links = document.getElementsByTagName('a');
+
+// 遍历所有链接并查找匹配 Hugging Face blob 地址
+for (const link of links) {
+  const href = link.href;
+  // 匹配 datasets 仓库 blob 链接
+  const urlRegex = /^https:\/\/huggingface\.co\/datasets\/[^/]+\/[^/]+\/blob\/[^/]+\/.+$/;
+  if (urlRegex.test(href)) {
+    // 替换 blob → resolve
+    const realUrl = href.replace('/blob/', '/resolve/');
+    console.log('直链: ' + realUrl);
+  }
+}
+```
+。</description><guid isPermaLink="true">https://feeday.cn/post/huo-qu-wang-ye-lian-jie.html</guid><pubDate>Sun, 20 Jul 2025 04:45:35 +0000</pubDate></item><item><title>查找替换</title><link>https://feeday.cn/post/cha-zhao-ti-huan.html</link><description>搜索匹配当前目录下所有[文件名]或文件里的内容打印显示行号
+```
+grep -rn 'Money' *
+```
+
+搜索多个文件并查找匹配文本在哪些文件中：
+```
+grep -l 'Money' file1 file2 file3...
+```
+
+查找 formatting.php 文件内 length’, 55 替换 length’, 56 :
+```
+sed -i s/'length', 55'/'length', 56'/g `grep 'length', 55' -rl --include='formatting.php' ./`
+```。</description><guid isPermaLink="true">https://feeday.cn/post/cha-zhao-ti-huan.html</guid><pubDate>Sun, 20 Jul 2025 04:45:05 +0000</pubDate></item><item><title>移到文件</title><link>https://feeday.cn/post/yi-dao-wen-jian.html</link><description>### 按照指定文件名移到文件
+
+### 简介
+假设目录与文件如下：
+```
+H:\
+├─ data
+│   ├─ report1.txt
+│   ├─ image_fail.png
+│   └─ sub
+│       └─ test_error.log
+├─ list.txt
+└─ copy    （初始为空）
+```
+
+list.txt 内容（每行一个关键字）
+```
+report
+fail
+missing
+error
+```
+
+运行控制台输出：
+```
+✔ 已移动: 'report1.txt' 对应关键字 'report' 到 'H:\copy\report1.txt'
+✔ 已移动: 'image_fail.png' 对应关键字 'fail' 到 'H:\copy\image_fail.png'
+⚠ 未找到匹配文件 for key: 'missing'
+✔ 已移动: 'test_error.log' 对应关键字 'error' 到 'H:\copy\test_error.log'
+ 
+共 4 个关键字，成功移动 3 个，对应文件。</description><guid isPermaLink="true">https://feeday.cn/post/yi-dao-wen-jian.html</guid><pubDate>Sun, 20 Jul 2025 04:44:19 +0000</pubDate></item><item><title>删除重复图像</title><link>https://feeday.cn/post/shan-chu-zhong-fu-tu-xiang.html</link><description>```
+import os
+import cv2
+import numpy as np
+from keras.applications.resnet50 import ResNet50, preprocess_input
+ 
+# pip install opencv-python numpy keras tensorflow
+ 
+def extract_image_features(image_path):
+    image = cv2.imread(image_path)  # 读取图片
+    image = cv2.resize(image, (256, 256))  # 缩放图片到统一尺寸
+    image = image[16:240, 16:240]  # 裁剪中间区域(224x224)
+    
+    image = np.expand_dims(image, axis=0)  # 扩展维度以匹配模型输入要求
+    image = preprocess_input(image)  # 预处理图片
+    
+    features = model.predict(image)  # 提取特征向量
+    features /= np.linalg.norm(features)  # 归一化特征向量
+    
+    return features.flatten()  # 平铺特征向量
+ 
+def delete_duplicate_images():
+    current_dir = os.getcwd()  # 获取当前目录路径
+    files = [f for f in os.listdir(current_dir) if os.path.isfile(os.path.join(current_dir, f))]  # 获取当前目录下的所有文件
+ 
+    image_features = {}
+    deleted_count = 0  # 记录删除的图片数量
+    duplicate_pairs = []  # 用于保存重复图片的文件名对
+ 
+    for file_name in files:
+        if file_name.endswith('.jpg') or file_name.endswith('.png'):  # 筛选出图片文件
+            file_path = os.path.join(current_dir, file_name)
+            image_feature = extract_image_features(file_path)
+ 
+            is_duplicate = False
+            for existing_path, existing_feature in image_features.items():
+                distance = np.linalg.norm(existing_feature - image_feature)  # 计算欧氏距离
+                if distance &lt; 0.3:  # 设定阈值来判断相似度，根据实际情况调整
+                    is_duplicate = True
+                    print(f'删除重复图片: {file_path}')
+                    os.remove(file_path)
+                    deleted_count += 1
+                    # 记录重复的文件名对 (当前文件名和已有文件名)
+                    duplicate_pairs.append((file_name, os.path.basename(existing_path)))
+                    break
+ 
+            if not is_duplicate:
+                image_features[file_path] = image_feature
+ 
+    # 将重复图片文件名对保存到txt文件
+    if duplicate_pairs:
+        with open('duplicate_images.txt', 'w') as f:
+            for file1, file2 in duplicate_pairs:
+                f.write(f'{file1} 与 {file2} 重复\n')
+    
+    print('已删除 {} 张重复图片'.format(deleted_count))
+ 
+# 加载预训练的ResNet50模型
+model = ResNet50(weights='imagenet', include_top=False, pooling='avg')
+ 
+delete_duplicate_images()
+```。</description><guid isPermaLink="true">https://feeday.cn/post/shan-chu-zhong-fu-tu-xiang.html</guid><pubDate>Sun, 20 Jul 2025 04:43:13 +0000</pubDate></item><item><title>md5处理文件</title><link>https://feeday.cn/post/md5-chu-li-wen-jian.html</link><description>## 删除MD5值相同的文件
+
+通过MD5值把重复的文件移到del文件夹，表格记录。</description><guid isPermaLink="true">https://feeday.cn/post/md5-chu-li-wen-jian.html</guid><pubDate>Sun, 20 Jul 2025 04:42:26 +0000</pubDate></item><item><title>同步代码</title><link>https://feeday.cn/post/tong-bu-dai-ma.html</link><description>## 常用的 Git 命令
+
+更新端口刷新DNS
+
+```
+git config --global http.proxy 127.0.0.1:7890
+git config --global https.proxy 127.0.0.1:7890
+ipconfig/flushdns
+```
+### 代码仓库拉取推送
+
+- https://github.com/settings/ssh/new
+- https://huggingface.co/settings/keys/add?type=ssh
+
+拉取仓库本地到本地推送到远程仓库
+
+```
+git clone https://github.com/lllyasviel/Fooocus.git
+git config --global user.email 'you@example.com'
+git config --global user.name 'Your Name'
+git remote set-url origin git@github.com:lllyasviel/Fooocus.git
+ssh-keygen -t rsa -b 4096 -C 'your_email@example.com'
+ssh -T git@github.com
+git add . 
+git commit -m 'Test' 
+```
+
+本地推送到远程仓库
+```
+git push origin main
+```
+远程仓库同步到本地 
+```
+git pull origin main  
+```
+
+### 1. **克隆远程仓库**
+
+克隆一个远程仓库到本地，命令如下：
+
+```bash
+git clone https://github.com/lllyasviel/Fooocus.git
+```
+
+### 2. **检查当前 Git 配置**
+
+查看 Git 的全局配置，如用户名和邮箱：
+
+```bash
+git config --list
+```
+
+### 3. **检查当前状态**
+
+查看当前工作目录和暂存区的状态（哪些文件已修改、未跟踪等）：
+
+```bash
+git status
+```
+
+### 4. **添加文件到暂存区**
+
+将文件添加到暂存区，准备提交：
+
+```bash
+git add &lt;file_name&gt;  # 添加指定文件
+git add .  # 添加所有修改的文件
+```
+
+### 5. **提交更改**
+
+提交更改并添加提交信息：
+
+```bash
+git commit -m '描述本次提交的内容'
+```
+
+### 6. **推送远程仓库**
+
+将本地更改推送到远程仓库：
+
+```bash
+git push origin branch-name
+```
+
+### 7. **远程仓库更新**
+
+拉取远程仓库的更新，并合并到当前分支：
+
+```bash
+git pull origin branch-name
+```
+
+### 8. **查看远程仓库信息**
+
+查看当前项目的远程仓库地址：
+
+```bash
+git remote -v
+```
+
+### 9. **查看提交历史**
+
+查看提交历史记录：
+
+```bash
+git log
+```
+
+### 10. **创建新分支**
+
+创建一个新分支，并切换到该分支：
+
+```bash
+git checkout -b new-branch-name
+```
+
+### 11. **切换分支**
+
+切换到已有的分支：
+
+```bash
+git checkout branch-name
+```
+
+### 12. **合并分支**
+
+将当前分支合并到目标分支：
+
+```bash
+git merge branch-name
+```。</description><guid isPermaLink="true">https://feeday.cn/post/tong-bu-dai-ma.html</guid><pubDate>Sun, 20 Jul 2025 04:41:37 +0000</pubDate></item><item><title>查找代码</title><link>https://feeday.cn/post/cha-zhao-dai-ma.html</link><description>## Windows 查找
+```
+Get-ChildItem -Recurse -File | Select-String -Pattern '56'
+```
+## Bash 查找
+搜索匹配当前目录下所有文件名或文件里的内容打印显示行号
+```
+grep -rn 'Money' *
+```
+搜索多个文件并查找匹配文本在哪些文件中：
+```
+grep -l 'Money' file1 file2 file3...
+```
+查找 formatting.php 文件内 length’, 55 替换 length’, 56 :
+
+```
+sed -i s/'length', 55'/'length', 56'/g `grep 'length', 55' -rl --include='formatting.php' ./`
+```。</description><guid isPermaLink="true">https://feeday.cn/post/cha-zhao-dai-ma.html</guid><pubDate>Sun, 20 Jul 2025 04:40:46 +0000</pubDate></item><item><title>NextChat</title><link>https://feeday.cn/post/NextChat.html</link><description>
+
+✨ Light and Fast AI Assistant,with Claude, DeepSeek, GPT4 &amp; Gemini Pro support. 
+
+
+[NextChatAI](https://nextchat.club?utm_source=readme) / [Web App Demo](https://app.nextchat.dev) / [Desktop App](https://github.com/Yidadaa/ChatGPT-Next-Web/releases) / [Discord](https://discord.gg/YCkeafCafC) / [Enterprise Edition](#enterprise-edition) / [Twitter](https://twitter.com/NextChatDev)
+
+
+[saas-url]: https://nextchat.club?utm_source=readme
+[saas-image]: https://img.shields.io/badge/NextChat-Saas-green?logo=microsoftedge
+[web-url]: https://app.nextchat.dev/
+[download-url]: https://github.com/Yidadaa/ChatGPT-Next-Web/releases
+[Web-image]: https://img.shields.io/badge/Web-PWA-orange?logo=microsoftedge
+[Windows-image]: https://img.shields.io/badge/-Windows-blue?logo=windows
+[MacOS-image]: https://img.shields.io/badge/-MacOS-black?logo=apple
+[Linux-image]: https://img.shields.io/badge/-Linux-333?logo=ubuntu
+
+[&lt;img src='https://zeabur.com/button.svg' alt='Deploy on Zeabur' height='30'&gt;](https://zeabur.com/templates/ZBUEFA) [&lt;img src='https://vercel.com/button' alt='Deploy on Vercel' height='30'&gt;](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FChatGPTNextWeb%2FChatGPT-Next-Web&amp;env=OPENAI_API_KEY&amp;env=CODE&amp;project-name=nextchat&amp;repository-name=NextChat)  [&lt;img src='https://gitpod.io/button/open-in-gitpod.svg' alt='Open in Gitpod' height='30'&gt;](https://gitpod.io/#https://github.com/ChatGPTNextWeb/NextChat) 
+
+[&lt;img src='https://github.com/user-attachments/assets/903482d4-3e87-4134-9af1-f2588fa90659' height='50' width='' &gt;](https://monica.im/?utm=nxcrp)
+
+
+
+## Dokploy
+
+Dokploy 是一个免费的、可自托管的平台即服务 （PaaS），可简化应用程序和数据库的部署和管理。</description><guid isPermaLink="true">https://feeday.cn/post/NextChat.html</guid><pubDate>Sat, 19 Jul 2025 20:47:38 +0000</pubDate></item><item><title>创建博客</title><link>https://feeday.cn/post/chuang-jian-bo-ke.html</link><description>## 安装步骤
+
+1. 【创建仓库】点击[通过模板创建仓库](https://github.com/new?template_name=Gmeek-template&amp;template_owner=Meekdai)，建议仓库名称为`XXX.github.io`，其中`XXX`为你的github用户名。</description><guid isPermaLink="true">https://feeday.cn/post/chuang-jian-bo-ke.html</guid><pubDate>Sat, 19 Jul 2025 17:50:50 +0000</pubDate></item></channel></rss>

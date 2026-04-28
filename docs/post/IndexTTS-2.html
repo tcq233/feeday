@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    <script src='/gmeek/GmeekVercount.js'></script>
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="## 版本更新
+
+
+- **2025/09/08** IndexTTS-2 发布（首个支持精确合成时长控制的自回归零样本文本转语音模型）  
+- **2025/05/14** IndexTTS-1.5 发布（提升模型稳定性和英文表现）  
+- **2025/03/25** IndexTTS-1.0 发布（开放权重和推理代码）  
+- **2025/02/12** 论文提交至 arXiv，并发布 Demo 与测试集  
+
+---
+
+<div style='text-align:left'>
+  <a href='https://arxiv.org/abs/2506.21619'>
+    <img src='https://img.shields.io/badge/ArXiv-2506.21619-red?logo=arxiv'/>
+  </a>
+  <br/>
+  <a href='https://github.com/index-tts/index-tts'>
+    <img src='https://img.shields.io/badge/GitHub-Code-orange?logo=github'/>
+  </a>
+  <a href='https://index-tts.github.io/index-tts2.github.io/'>
+    <img src='https://img.shields.io/badge/GitHub-Demo-orange?logo=github'/>
+  </a>
+  <br/>
+  <a href='https://huggingface.co/spaces/IndexTeam/IndexTTS-2-Demo'>
+    <img src='https://img.shields.io/badge/HuggingFace-Demo-blue?logo=huggingface'/>
+  </a>
+  <a href='https://huggingface.co/IndexTeam/IndexTTS-2'>
+    <img src='https://img.shields.io/badge/HuggingFace-Model-blue?logo=huggingface' />
+  </a>
+  <br/>
+  <a href='https://modelscope.cn/studios/IndexTeam/IndexTTS-2-Demo'>
+    <img src='https://img.shields.io/badge/ModelScope-Demo-purple?logo=modelscope'/>
+  </>
+  <a href='https://modelscope.cn/models/IndexTeam/IndexTTS-2'>
+    <img src='https://img.shields.io/badge/ModelScope-Model-purple?logo=modelscope'/>
+  </a>
+</div>
+
+---
+
+## 模型下载
+
+| **HuggingFace**                                          | **ModelScope** |
+|----------------------------------------------------------|----------------------------------------------------------|
+| [IndexTTS-2](https://huggingface.co/IndexTeam/IndexTTS-2) | [IndexTTS-2](https://modelscope.cn/models/IndexTeam/IndexTTS-2) |
+| [IndexTTS-1.5](https://huggingface.co/IndexTeam/IndexTTS-1.5) | [IndexTTS-1.5](https://modelscope.cn/models/IndexTeam/IndexTTS-1.5) |
+| [IndexTTS](https://huggingface.co/IndexTeam/Index-TTS) | [IndexTTS](https://modelscope.cn/models/IndexTeam/Index-TTS) |
+
+---
+
+
+##  社区支持
+
+* QQ 群：553460296 (No.1) / 663272642 (No.4)
+* Discord：[Join](https://discord.gg/uT32E7KDmy)
+* Email：[indexspeech@bilibili.com](mailto:indexspeech@bilibili.com)
+* 官方仓库：[https://github.com/index-tts/index-tts](https://github.com/index-tts/index-tts)
+
+---
+
+## 论文概览
+
+IndexTTS2：情感表达和持续时间控制的自动回归零样本文本转语音的突破
+
+[周思怡](https://arxiv.org/search/cs?searchtype=author&query=Zhou,+S)， [周义全](https://arxiv.org/search/cs?searchtype=author&query=Zhou,+Y)， [何毅](https://arxiv.org/search/cs?searchtype=author&query=He,+Y)， [周勋](https://arxiv.org/search/cs?searchtype=author&query=Zhou,+X)， [王金超](https://arxiv.org/search/cs?searchtype=author&query=Wang,+J)， [邓伟](https://arxiv.org/search/cs?searchtype=author&query=Deng,+W)， [舒景晨](https://arxiv.org/search/cs?searchtype=author&query=Shu,+J)
+
+[v2] 2025 年 9 月 3 日星期三 10：46：35 UTC （1,632 KB）
+
+现有的自回归大规模文本转语音（TTS）模型在语音自然性方面具有优势，但其逐个标记的生成机制使得合成语音的持续时间难以精确控制。">
+<meta property="og:title" content="IndexTTS-2">
+<meta property="og:description" content="## 版本更新
+
+
+- **2025/09/08** IndexTTS-2 发布（首个支持精确合成时长控制的自回归零样本文本转语音模型）  
+- **2025/05/14** IndexTTS-1.5 发布（提升模型稳定性和英文表现）  
+- **2025/03/25** IndexTTS-1.0 发布（开放权重和推理代码）  
+- **2025/02/12** 论文提交至 arXiv，并发布 Demo 与测试集  
+
+---
+
+<div style='text-align:left'>
+  <a href='https://arxiv.org/abs/2506.21619'>
+    <img src='https://img.shields.io/badge/ArXiv-2506.21619-red?logo=arxiv'/>
+  </a>
+  <br/>
+  <a href='https://github.com/index-tts/index-tts'>
+    <img src='https://img.shields.io/badge/GitHub-Code-orange?logo=github'/>
+  </a>
+  <a href='https://index-tts.github.io/index-tts2.github.io/'>
+    <img src='https://img.shields.io/badge/GitHub-Demo-orange?logo=github'/>
+  </a>
+  <br/>
+  <a href='https://huggingface.co/spaces/IndexTeam/IndexTTS-2-Demo'>
+    <img src='https://img.shields.io/badge/HuggingFace-Demo-blue?logo=huggingface'/>
+  </a>
+  <a href='https://huggingface.co/IndexTeam/IndexTTS-2'>
+    <img src='https://img.shields.io/badge/HuggingFace-Model-blue?logo=huggingface' />
+  </a>
+  <br/>
+  <a href='https://modelscope.cn/studios/IndexTeam/IndexTTS-2-Demo'>
+    <img src='https://img.shields.io/badge/ModelScope-Demo-purple?logo=modelscope'/>
+  </>
+  <a href='https://modelscope.cn/models/IndexTeam/IndexTTS-2'>
+    <img src='https://img.shields.io/badge/ModelScope-Model-purple?logo=modelscope'/>
+  </a>
+</div>
+
+---
+
+## 模型下载
+
+| **HuggingFace**                                          | **ModelScope** |
+|----------------------------------------------------------|----------------------------------------------------------|
+| [IndexTTS-2](https://huggingface.co/IndexTeam/IndexTTS-2) | [IndexTTS-2](https://modelscope.cn/models/IndexTeam/IndexTTS-2) |
+| [IndexTTS-1.5](https://huggingface.co/IndexTeam/IndexTTS-1.5) | [IndexTTS-1.5](https://modelscope.cn/models/IndexTeam/IndexTTS-1.5) |
+| [IndexTTS](https://huggingface.co/IndexTeam/Index-TTS) | [IndexTTS](https://modelscope.cn/models/IndexTeam/Index-TTS) |
+
+---
+
+
+##  社区支持
+
+* QQ 群：553460296 (No.1) / 663272642 (No.4)
+* Discord：[Join](https://discord.gg/uT32E7KDmy)
+* Email：[indexspeech@bilibili.com](mailto:indexspeech@bilibili.com)
+* 官方仓库：[https://github.com/index-tts/index-tts](https://github.com/index-tts/index-tts)
+
+---
+
+## 论文概览
+
+IndexTTS2：情感表达和持续时间控制的自动回归零样本文本转语音的突破
+
+[周思怡](https://arxiv.org/search/cs?searchtype=author&query=Zhou,+S)， [周义全](https://arxiv.org/search/cs?searchtype=author&query=Zhou,+Y)， [何毅](https://arxiv.org/search/cs?searchtype=author&query=He,+Y)， [周勋](https://arxiv.org/search/cs?searchtype=author&query=Zhou,+X)， [王金超](https://arxiv.org/search/cs?searchtype=author&query=Wang,+J)， [邓伟](https://arxiv.org/search/cs?searchtype=author&query=Deng,+W)， [舒景晨](https://arxiv.org/search/cs?searchtype=author&query=Shu,+J)
+
+[v2] 2025 年 9 月 3 日星期三 10：46：35 UTC （1,632 KB）
+
+现有的自回归大规模文本转语音（TTS）模型在语音自然性方面具有优势，但其逐个标记的生成机制使得合成语音的持续时间难以精确控制。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://feeday.cn/post/IndexTTS-2.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>IndexTTS-2</title>
+<link href="//unpkg.com/@wooorm/starry-night@2.1.1/style/both.css" rel="stylesheet" />
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+.copy-feedback {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    color: var(--color-fg-on-emphasis);
+    background-color: var(--color-fg-muted);
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">IndexTTS-2</h1>
+<div class="title-right">
+    <a href="https://feeday.cn" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/tcq233/feeday/issues/85" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><h2>版本更新</h2>
+<ul>
+<li><strong>2025/09/08</strong> IndexTTS-2 发布（首个支持精确合成时长控制的自回归零样本文本转语音模型）</li>
+<li><strong>2025/05/14</strong> IndexTTS-1.5 发布（提升模型稳定性和英文表现）</li>
+<li><strong>2025/03/25</strong> IndexTTS-1.0 发布（开放权重和推理代码）</li>
+<li><strong>2025/02/12</strong> 论文提交至 arXiv，并发布 Demo 与测试集</li>
+</ul>
+<hr>
+<div>
+  <a href="https://arxiv.org/abs/2506.21619" rel="nofollow">
+    <img src="https://camo.githubusercontent.com/f3ea2b1d4a1060a0c0acf349a2473e9e225ebd22b9e2ca5fb53b6c75d0009aa4/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f41725869762d323530362e32313631392d7265643f6c6f676f3d6172786976" data-canonical-src="https://img.shields.io/badge/ArXiv-2506.21619-red?logo=arxiv" style="max-width: 100%;">
+  </a>
+  <br>
+  <a href="https://github.com/index-tts/index-tts">
+    <img src="https://camo.githubusercontent.com/22665ba29c8765d88c2b62c4e4df9184bf605b32c36f46645a0aafbab905961d/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4769744875622d436f64652d6f72616e67653f6c6f676f3d676974687562" data-canonical-src="https://img.shields.io/badge/GitHub-Code-orange?logo=github" style="max-width: 100%;">
+  </a>
+  <a href="https://index-tts.github.io/index-tts2.github.io/" rel="nofollow">
+    <img src="https://camo.githubusercontent.com/1f15b19ec42da1bc621b6e389043dac24895d008176e5a90645cfd0e8d26692a/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4769744875622d44656d6f2d6f72616e67653f6c6f676f3d676974687562" data-canonical-src="https://img.shields.io/badge/GitHub-Demo-orange?logo=github" style="max-width: 100%;">
+  </a>
+  <br>
+  <a href="https://huggingface.co/spaces/IndexTeam/IndexTTS-2-Demo" rel="nofollow">
+    <img src="https://camo.githubusercontent.com/38c5e1c236f6b0b30f451e72311aba7299070f251796529718473eb2d74138af/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f48756767696e67466163652d44656d6f2d626c75653f6c6f676f3d68756767696e6766616365" data-canonical-src="https://img.shields.io/badge/HuggingFace-Demo-blue?logo=huggingface" style="max-width: 100%;">
+  </a>
+  <a href="https://huggingface.co/IndexTeam/IndexTTS-2" rel="nofollow">
+    <img src="https://camo.githubusercontent.com/8bb56464662b8e2a756348a1a6f00fe0ab0eb9fd18f23984a6769f1b6a52776d/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f48756767696e67466163652d4d6f64656c2d626c75653f6c6f676f3d68756767696e6766616365" data-canonical-src="https://img.shields.io/badge/HuggingFace-Model-blue?logo=huggingface" style="max-width: 100%;">
+  </a>
+  <br>
+  <a href="https://modelscope.cn/studios/IndexTeam/IndexTTS-2-Demo" rel="nofollow">
+    <img src="https://camo.githubusercontent.com/75f42ce2d6b7b19ade82703dd818d75bbc31f895fce7fcc36452ce242e95ef14/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4d6f64656c53636f70652d44656d6f2d707572706c653f6c6f676f3d6d6f64656c73636f7065" data-canonical-src="https://img.shields.io/badge/ModelScope-Demo-purple?logo=modelscope" style="max-width: 100%;">
+  
+  </a><a href="https://modelscope.cn/models/IndexTeam/IndexTTS-2" rel="nofollow">
+    <img src="https://camo.githubusercontent.com/0a15480a42e7d529486b200a124c74c34ffc728759a9909d0381713fffb26ab3/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4d6f64656c53636f70652d4d6f64656c2d707572706c653f6c6f676f3d6d6f64656c73636f7065" data-canonical-src="https://img.shields.io/badge/ModelScope-Model-purple?logo=modelscope" style="max-width: 100%;">
+  </a>
+</div>
+<hr>
+<h2>模型下载</h2>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th><strong>HuggingFace</strong></th>
+<th><strong>ModelScope</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://huggingface.co/IndexTeam/IndexTTS-2" rel="nofollow">IndexTTS-2</a></td>
+<td><a href="https://modelscope.cn/models/IndexTeam/IndexTTS-2" rel="nofollow">IndexTTS-2</a></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/IndexTeam/IndexTTS-1.5" rel="nofollow">IndexTTS-1.5</a></td>
+<td><a href="https://modelscope.cn/models/IndexTeam/IndexTTS-1.5" rel="nofollow">IndexTTS-1.5</a></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/IndexTeam/Index-TTS" rel="nofollow">IndexTTS</a></td>
+<td><a href="https://modelscope.cn/models/IndexTeam/Index-TTS" rel="nofollow">IndexTTS</a></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h2>社区支持</h2>
+<ul>
+<li>QQ 群：553460296 (No.1) / 663272642 (No.4)</li>
+<li>Discord：<a href="https://discord.gg/uT32E7KDmy" rel="nofollow">Join</a></li>
+<li>Email：<a href="mailto:indexspeech@bilibili.com">indexspeech@bilibili.com</a></li>
+<li>官方仓库：<a href="https://github.com/index-tts/index-tts">https://github.com/index-tts/index-tts</a></li>
+</ul>
+<hr>
+<h2>论文概览</h2>
+<p>IndexTTS2：情感表达和持续时间控制的自动回归零样本文本转语音的突破</p>
+<p><a href="https://arxiv.org/search/cs?searchtype=author&amp;query=Zhou,+S" rel="nofollow">周思怡</a>， <a href="https://arxiv.org/search/cs?searchtype=author&amp;query=Zhou,+Y" rel="nofollow">周义全</a>， <a href="https://arxiv.org/search/cs?searchtype=author&amp;query=He,+Y" rel="nofollow">何毅</a>， <a href="https://arxiv.org/search/cs?searchtype=author&amp;query=Zhou,+X" rel="nofollow">周勋</a>， <a href="https://arxiv.org/search/cs?searchtype=author&amp;query=Wang,+J" rel="nofollow">王金超</a>， <a href="https://arxiv.org/search/cs?searchtype=author&amp;query=Deng,+W" rel="nofollow">邓伟</a>， <a href="https://arxiv.org/search/cs?searchtype=author&amp;query=Shu,+J" rel="nofollow">舒景晨</a></p>
+<p>[v2] 2025 年 9 月 3 日星期三 10：46：35 UTC （1,632 KB）</p>
+<p>现有的自回归大规模文本转语音（TTS）模型在语音自然性方面具有优势，但其逐个标记的生成机制使得合成语音的持续时间难以精确控制。这在需要严格视听同步的应用（例如视频配音）中成为一个重大限制。本文介绍了IndexTTS2，该方法提出了一种新颖、通用、自回归的语音时长控制模型友好方法。该方法支持两种生成模式：一种明确指定生成的标记数量以精确控制语音持续时间;另一种以自回归的方式自由生成语音，无需指定标记的数量，同时忠实地再现输入提示的韵律特征。此外，IndexTTS2 实现了情感表达和说话者身份之间的解开，实现了对音色和情感的独立控制。在零样本设置中，模型可以准确地重建目标音色（来自音色提示），同时完美再现指定的情感音调（来自风格提示）。为了提高高度情感表达中的语音清晰度，我们结合了GPT潜在表示，并设计了一种新颖的三阶段训练范式，以提高生成语音的稳定性。此外，为了降低情绪控制的门槛，我们通过微调Qwen3设计了一种基于文本描述的软指令机制，有效地引导了具有所需情感取向的语音生成。最后，在多个数据集上的实验结果表明，IndexTTS2在单词错误率、说话人相似性和情感保真度方面优于最先进的零样本TTS模型。</p>
+<hr>
+<h2>测试分数</h2>
+<p>GPT识别转换未核对</p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>数据集</th>
+<th>模型</th>
+<th>说话人相似度 (SS↑)</th>
+<th>词错误率 WER(%)↓</th>
+<th>自然度 SMOS↑</th>
+<th>节奏 PMOS↑</th>
+<th>整体质量 QMOS↑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>LibriSpeech test-clean</strong></td>
+<td>Ground Truth</td>
+<td>0.833</td>
+<td>3.405</td>
+<td>4.02±0.22</td>
+<td>3.85±0.26</td>
+<td>4.23±0.12</td>
+</tr>
+<tr>
+<td></td>
+<td>MaskGCT</td>
+<td>0.790</td>
+<td>7.759</td>
+<td>4.12±0.09</td>
+<td>3.98±0.11</td>
+<td>4.19±0.19</td>
+</tr>
+<tr>
+<td></td>
+<td>F5-TTS</td>
+<td>0.821</td>
+<td>8.044</td>
+<td>4.08±0.21</td>
+<td>3.73±0.27</td>
+<td>4.12±0.13</td>
+</tr>
+<tr>
+<td></td>
+<td>CosyVoice2</td>
+<td>0.843</td>
+<td>5.999</td>
+<td>4.02±0.22</td>
+<td>4.04±0.28</td>
+<td>4.17±0.25</td>
+</tr>
+<tr>
+<td></td>
+<td>SparkTTS</td>
+<td>0.756</td>
+<td>8.843</td>
+<td>4.06±0.20</td>
+<td>3.94±0.21</td>
+<td>4.15±0.16</td>
+</tr>
+<tr>
+<td></td>
+<td>IndexTTS</td>
+<td>0.819</td>
+<td>3.436</td>
+<td>4.23±0.14</td>
+<td>4.02±0.18</td>
+<td>4.29±0.22</td>
+</tr>
+<tr>
+<td></td>
+<td>IndexTTS2</td>
+<td>0.870</td>
+<td>3.115</td>
+<td>4.44±0.12</td>
+<td>4.12±0.17</td>
+<td>4.29±0.14</td>
+</tr>
+<tr>
+<td></td>
+<td>- GPT latent</td>
+<td><strong>0.887</strong></td>
+<td>3.334</td>
+<td><strong>4.33±0.10</strong></td>
+<td>4.10±0.12</td>
+<td>4.17±0.22</td>
+</tr>
+<tr>
+<td><strong>SeedTTS test-en</strong></td>
+<td>Ground Truth</td>
+<td>0.820</td>
+<td>1.897</td>
+<td>4.21±0.19</td>
+<td>4.06±0.25</td>
+<td>4.40±0.15</td>
+</tr>
+<tr>
+<td></td>
+<td>MaskGCT</td>
+<td>0.824</td>
+<td>2.530</td>
+<td>4.35±0.20</td>
+<td>4.02±0.24</td>
+<td>4.50±0.17</td>
+</tr>
+<tr>
+<td></td>
+<td>F5-TTS</td>
+<td>0.803</td>
+<td>1.937</td>
+<td>4.44±0.14</td>
+<td>4.06±0.21</td>
+<td>4.40±0.12</td>
+</tr>
+<tr>
+<td></td>
+<td>CosyVoice2</td>
+<td>0.794</td>
+<td>3.277</td>
+<td>4.42±0.26</td>
+<td>3.96±0.24</td>
+<td>4.52±0.15</td>
+</tr>
+<tr>
+<td></td>
+<td>SparkTTS</td>
+<td>0.755</td>
+<td>1.543</td>
+<td>3.96±0.23</td>
+<td>4.12±0.22</td>
+<td>3.89±0.20</td>
+</tr>
+<tr>
+<td></td>
+<td>IndexTTS</td>
+<td>0.808</td>
+<td>1.844</td>
+<td><strong>4.67±0.16</strong></td>
+<td><strong>4.52±0.14</strong></td>
+<td><strong>4.67±0.19</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>IndexTTS2</td>
+<td>0.860</td>
+<td><strong>1.521</strong></td>
+<td>4.42±0.19</td>
+<td>4.40±0.13</td>
+<td>4.48±0.15</td>
+</tr>
+<tr>
+<td></td>
+<td>- GPT latent</td>
+<td><strong>0.879</strong></td>
+<td>1.616</td>
+<td>4.40±0.22</td>
+<td>4.31±0.17</td>
+<td>4.42±0.20</td>
+</tr>
+<tr>
+<td><strong>SeedTTS test-zh</strong></td>
+<td>Ground Truth</td>
+<td>0.776</td>
+<td>1.254</td>
+<td>3.81±0.24</td>
+<td>4.04±0.28</td>
+<td>4.21±0.26</td>
+</tr>
+<tr>
+<td></td>
+<td>MaskGCT</td>
+<td>0.807</td>
+<td>2.447</td>
+<td>3.94±0.22</td>
+<td>3.54±0.26</td>
+<td>4.15±0.15</td>
+</tr>
+<tr>
+<td></td>
+<td>F5-TTS</td>
+<td>0.844</td>
+<td>1.514</td>
+<td>4.19±0.21</td>
+<td>3.88±0.23</td>
+<td>4.38±0.16</td>
+</tr>
+<tr>
+<td></td>
+<td>CosyVoice2</td>
+<td>0.846</td>
+<td>1.451</td>
+<td>4.12±0.25</td>
+<td>4.33±0.19</td>
+<td>4.31±0.21</td>
+</tr>
+<tr>
+<td></td>
+<td>SparkTTS</td>
+<td>0.683</td>
+<td>2.636</td>
+<td>3.65±0.22</td>
+<td>4.10±0.25</td>
+<td>3.79±0.18</td>
+</tr>
+<tr>
+<td></td>
+<td>IndexTTS</td>
+<td>0.781</td>
+<td>1.097</td>
+<td>4.10±0.09</td>
+<td>3.73±0.23</td>
+<td>4.33±0.20</td>
+</tr>
+<tr>
+<td></td>
+<td>IndexTTS2</td>
+<td>0.865</td>
+<td><strong>1.008</strong></td>
+<td><strong>4.44±0.17</strong></td>
+<td><strong>4.46±0.11</strong></td>
+<td><strong>4.54±0.08</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>- GPT latent</td>
+<td><strong>0.890</strong></td>
+<td>1.261</td>
+<td>4.44±0.13</td>
+<td>4.33±0.15</td>
+<td>4.48±0.17</td>
+</tr>
+<tr>
+<td><strong>AIShell-1 test</strong></td>
+<td>Ground Truth</td>
+<td>0.847</td>
+<td>1.840</td>
+<td>4.27±0.19</td>
+<td>3.83±0.25</td>
+<td>4.25±0.14</td>
+</tr>
+<tr>
+<td></td>
+<td>MaskGCT</td>
+<td>0.598</td>
+<td>4.930</td>
+<td>3.92±0.03</td>
+<td>2.67±0.08</td>
+<td>3.67±0.07</td>
+</tr>
+<tr>
+<td></td>
+<td>F5-TTS</td>
+<td>0.831</td>
+<td>3.671</td>
+<td>4.17±0.30</td>
+<td>3.60±0.25</td>
+<td>4.25±0.22</td>
+</tr>
+<tr>
+<td></td>
+<td>CosyVoice2</td>
+<td>0.834</td>
+<td>1.967</td>
+<td>4.21±0.23</td>
+<td>4.33±0.19</td>
+<td>4.37±0.20</td>
+</tr>
+<tr>
+<td></td>
+<td>SparkTTS</td>
+<td>0.593</td>
+<td>1.743</td>
+<td>3.48±0.22</td>
+<td>3.96±0.16</td>
+<td>3.79±0.20</td>
+</tr>
+<tr>
+<td></td>
+<td>IndexTTS</td>
+<td>0.794</td>
+<td>1.478</td>
+<td>4.48±0.18</td>
+<td><strong>4.25±0.19</strong></td>
+<td>4.49±0.15</td>
+</tr>
+<tr>
+<td></td>
+<td>IndexTTS2</td>
+<td>0.843</td>
+<td><strong>1.516</strong></td>
+<td><strong>4.54±0.11</strong></td>
+<td>4.42±0.17</td>
+<td><strong>4.52±0.17</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>- GPT latent</td>
+<td><strong>0.868</strong></td>
+<td>1.791</td>
+<td>4.33±0.22</td>
+<td>4.27±0.26</td>
+<td>4.40±0.19</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<h2>相关数据</h2>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>名称</th>
+<th>来源</th>
+<th>类型</th>
+<th>发布时间</th>
+<th>用途 / 备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DiDiSpeech</td>
+<td><a href="https://github.com/athena-team/DiDiSpeech">GitHub</a></td>
+<td>中文普通话语音</td>
+<td>2021</td>
+<td>部分语料被采样用于 SeedTTS test-zh 基准测试</td>
+</tr>
+<tr>
+<td>ESD (Emotional Speech Dataset)</td>
+<td><a href="https://github.com/HLTSingapore/ESD">GitHub</a></td>
+<td>多语言情感语音数据集</td>
+<td>2020</td>
+<td>提供 29 小时情感语音，用于增强情感建模</td>
+</tr>
+<tr>
+<td>Common Voice</td>
+<td><a href="https://commonvoice.mozilla.org/" rel="nofollow">Mozilla Common Voice</a></td>
+<td>多语言众包语音</td>
+<td>2017</td>
+<td>部分语料被采样用于 SeedTTS test-en 基准测试</td>
+</tr>
+<tr>
+<td>AISHELL-1</td>
+<td><a href="https://www.openslr.org/33/" rel="nofollow">OpenSLR</a></td>
+<td>中文普通话语音</td>
+<td>2017</td>
+<td>随机抽取 1,000 条语音作为测试集</td>
+</tr>
+<tr>
+<td>LibriSpeech</td>
+<td><a href="https://www.openslr.org/12/" rel="nofollow">OpenSLR</a></td>
+<td>英语朗读语音 (有声书)</td>
+<td>2015</td>
+<td>随机抽取 test-clean 子集，用于英语语音评测</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h2>部署方法</h2>
+<h4>1. 安装依赖</h4>
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c"><span class="pl-c">#</span> 安装 uv (推荐的依赖管理工具)</span>
+pip install -U uv
+
+<span class="pl-c"><span class="pl-c">#</span> 克隆项目</span>
+git clone https://github.com/index-tts/index-tts.git <span class="pl-k">&amp;&amp;</span> <span class="pl-c1">cd</span> index-tts
+git lfs install
+git lfs pull
+
+<span class="pl-c"><span class="pl-c">#</span> 同步依赖</span>
+uv sync --all-extras
+<span class="pl-c"><span class="pl-c">#</span> 如果网络慢，可用国内镜像：</span>
+uv sync --all-extras --default-index <span class="pl-s"><span class="pl-pds">"</span>https://mirrors.aliyun.com/pypi/simple<span class="pl-pds">"</span></span></pre></div>
+<h4>2. 下载模型</h4>
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c"><span class="pl-c">#</span> HuggingFace</span>
+uv tool install <span class="pl-s"><span class="pl-pds">"</span>huggingface-hub[cli,hf_xet]<span class="pl-pds">"</span></span>
+hf download IndexTeam/IndexTTS-2 --local-dir=checkpoints
+
+<span class="pl-c"><span class="pl-c">#</span> 或 ModelScope</span>
+uv tool install <span class="pl-s"><span class="pl-pds">"</span>modelscope<span class="pl-pds">"</span></span>
+modelscope download --model IndexTeam/IndexTTS-2 --local_dir checkpoints
+
+<span class="pl-c"><span class="pl-c">#</span> 或 直接用 uvx 方式临时调用</span>
+uvx modelscope download --model IndexTeam/IndexTTS-2 --local_dir checkpoints
+</pre></div>
+<h4>3. 检查 GPU 环境</h4>
+<div class="highlight highlight-source-shell"><pre class="notranslate">uv run tools/gpu_check.py</pre></div>
+<h4>4. 启动 WebUI</h4>
+<div class="highlight highlight-source-shell"><pre class="notranslate">uv run webui.py
+<span class="pl-c"><span class="pl-c">#</span> 浏览器访问 http://127.0.0.1:7860</span></pre></div>
+<h4>5. Python 调用示例</h4>
+<div class="highlight highlight-source-python"><pre class="notranslate"><span class="pl-k">from</span> <span class="pl-s1">indextts</span>.<span class="pl-s1">infer_v2</span> <span class="pl-k">import</span> <span class="pl-v">IndexTTS2</span>
+
+<span class="pl-s1">tts</span> <span class="pl-c1">=</span> <span class="pl-en">IndexTTS2</span>(<span class="pl-s1">cfg_path</span><span class="pl-c1">=</span><span class="pl-s">"checkpoints/config.yaml"</span>, <span class="pl-s1">model_dir</span><span class="pl-c1">=</span><span class="pl-s">"checkpoints"</span>, <span class="pl-s1">use_fp16</span><span class="pl-c1">=</span><span class="pl-c1">True</span>)
+<span class="pl-s1">text</span> <span class="pl-c1">=</span> <span class="pl-s">"Translate for me, what is a surprise!"</span>
+<span class="pl-s1">tts</span>.<span class="pl-c1">infer</span>(<span class="pl-s1">spk_audio_prompt</span><span class="pl-c1">=</span><span class="pl-s">'examples/voice_01.wav'</span>, <span class="pl-s1">text</span><span class="pl-c1">=</span><span class="pl-s1">text</span>, <span class="pl-s1">output_path</span><span class="pl-c1">=</span><span class="pl-s">"gen.wav"</span>, <span class="pl-s1">verbose</span><span class="pl-c1">=</span><span class="pl-c1">True</span>)</pre></div>
+<h2>运行代码</h2>
+<pre class="notranslate"><code class="notranslate"># .vscode/preview.yml
+autoOpen: true # 打开工作空间时是否自动开启所有应用的预览
+apps:
+  - port: 7860 # 应用的端口
+    run: uv run webui.py
+    root: ./index-tts # 应用的启动目录
+    name: IndexTTS2  # 应用名称
+    description: IndexTTS2 # 应用描述
+    autoOpen: true # 打开工作空间时是否自动运行命令（优先级高于根级 autoOpen）
+    autoPreview: true # 是否自动打开预览, 若无则默认为true
+</code></pre>
+<h2>批量生成</h2>
+<pre class="notranslate"><code class="notranslate">#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+IndexTTS2 批量生成（离线/脚本版）
+- 自动安装依赖（含 modelscope / transformers / accelerate / WeTextProcessing / descript-audiotools）
+- 读取 in/1.txt（每行一句）和 in/ 下全部参考音频（wav/mp3/flac/m4a/ogg）
+- 做“音频 × 文本”笛卡尔积，生成到 out/
+默认路径：
+  --in_dir    /workspace/index-tts/in
+  --out_dir   /workspace/index-tts/out
+  --model_dir /workspace/index-tts/checkpoints
+"""
+import os, sys, time, subprocess, importlib
+from pathlib import Path
+import argparse
+
+# -------------------- 依赖自动安装（含版本对齐 &amp; 特殊回退） --------------------
+PINNED_PKGS = {
+    # 基础
+    "numpy": "numpy&gt;=1.24",
+    "scipy": "scipy&gt;=1.10",
+    "soundfile": "soundfile&gt;=0.12",
+    "librosa": "librosa&gt;=0.10",
+    "einops": "einops&gt;=0.6",
+    "sentencepiece": "sentencepiece&gt;=0.1.99",
+    "safetensors": "safetensors&gt;=0.4.2",
+    "tqdm": "tqdm&gt;=4.66",
+    "packaging": "packaging&gt;=23.2",
+    "omegaconf": "omegaconf&gt;=2.3.0",
+    # 关键三件套
+    "transformers": "transformers&gt;=4.44.2",
+    "accelerate": "accelerate&gt;=0.26.0",
+    "modelscope": "modelscope&gt;=1.19.0",
+    # DAC 依赖（导入名 audiotools；特殊逻辑见下）
+    "descript-audiotools": "descript-audiotools",
+    # 常见封装辅助（可选）
+    "av": "av&gt;=12.0.0",
+    "ffmpeg-python": "ffmpeg-python&gt;=0.2.0",
+    # 中文文本正则化（提供 tn.chinese.normalizer）
+    "WeTextProcessing": "WeTextProcessing",
+}
+
+IMPORT_NAME_MAP = {
+    "descript-audiotools": "audiotools",
+    "ffmpeg-python": "ffmpeg",
+    "WeTextProcessing": "tn",   # 安装包名 WeTextProcessing，导入名 tn
+}
+
+ALIYUN = "https://mirrors.aliyun.com/pypi/simple/"
+PYPI = "https://pypi.org/simple/"
+
+def _import_name_of(spec_key: str) -&gt; str:
+    return IMPORT_NAME_MAP.get(spec_key, spec_key.split("[")[0].split("==")[0].split("&gt;=")[0])
+
+def pip_install(args_list):
+    print("[PIP]", " ".join(map(str, args_list)))
+    subprocess.check_call(args_list)
+
+def install_general(spec_key: str, spec_value: str):
+    """通用安装：默认索引 -&gt; 阿里镜像"""
+    mod = _import_name_of(spec_key)
+    try:
+        importlib.import_module(mod)
+        return
+    except Exception:
+        pass
+    try:
+        pip_install([sys.executable, "-m", "pip", "install", "-U", spec_value])
+        importlib.import_module(mod); return
+    except Exception as e1:
+        print(f"[WARN] install {spec_value} on default index failed: {e1}")
+    try:
+        pip_install([sys.executable, "-m", "pip", "install", "-U", spec_value, "-i", ALIYUN])
+        importlib.import_module(mod); return
+    except Exception as e2:
+        print(f"[WARN] install {spec_value} on Aliyun failed: {e2}")
+        raise
+
+def install_descript_audiotools():
+    """descript-audiotools 特殊处理：
+       1) PyPI 最新；2) PyPI 0.7.2；3) 阿里 0.7.2
+    """
+    mod = "audiotools"
+    try:
+        importlib.import_module(mod); return
+    except Exception:
+        pass
+    for spec, idx in [
+        ("descript-audiotools", PYPI),
+        ("descript-audiotools==0.7.2", PYPI),
+        ("descript-audiotools==0.7.2", ALIYUN),
+    ]:
+        try:
+            pip_install([sys.executable, "-m", "pip", "install", "-U", spec, "-i", idx])
+            importlib.import_module(mod); return
+        except Exception as e:
+            print(f"[WARN] {spec} via {idx} failed: {e}")
+    raise RuntimeError("Failed to install descript-audiotools")
+
+def install_wetextprocessing():
+    """WeTextProcessing 提供 tn.*：
+       1) PyPI 最新；2) 阿里最新；失败则报错
+    """
+    try:
+        importlib.import_module("tn"); return
+    except Exception:
+        pass
+    for idx in [PYPI, ALIYUN]:
+        try:
+            pip_install([sys.executable, "-m", "pip", "install", "-U", "WeTextProcessing", "-i", idx])
+            importlib.import_module("tn"); return
+        except Exception as e:
+            print(f"[WARN] WeTextProcessing via {idx} failed: {e}")
+    raise RuntimeError("Failed to install WeTextProcessing (tn)")
+
+def ensure_deps():
+    for k, v in PINNED_PKGS.items():
+        if k == "descript-audiotools":
+            install_descript_audiotools()
+        elif k == "WeTextProcessing":
+            install_wetextprocessing()
+        else:
+            install_general(k, v)
+    # 关键：立刻验证 accelerate
+    try:
+        import accelerate  # noqa: F401
+    except Exception as e:
+        print("[FATAL] accelerate 仍不可用：", e)
+        print("请退出当前进程后重跑本脚本；或手动执行：")
+        print("  python -m pip install -U 'transformers&gt;=4.44.2' 'accelerate&gt;=0.26.0' 'modelscope&gt;=1.19.0'")
+        sys.exit(1)
+
+ensure_deps()
+
+# -------------------- 业务逻辑 --------------------
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.append(str(SCRIPT_DIR))
+sys.path.append(str(SCRIPT_DIR / "indextts"))
+
+from indextts.infer_v2 import IndexTTS2  # noqa: E402
+
+def find_prompt_audios(in_dir: Path):
+    exts = ["*.wav", "*.mp3", "*.flac", "*.m4a", "*.ogg"]
+    files = []
+    for p in exts: files += list(in_dir.glob(p))
+    return sorted([p for p in files if p.is_file()], key=lambda x: x.name.lower())
+
+def read_lines(txt: Path):
+    with txt.open("r", encoding="utf-8") as f:
+        return [ln.strip() for ln in f if ln.strip()]
+
+def safe_stem(p: Path) -&gt; str:
+    return p.stem.replace(" ", "_").replace("/", "_").replace("\\", "_")[:80]
+
+def detect_fp16() -&gt; bool:
+    try:
+        import torch
+        return torch.cuda.is_available()
+    except Exception:
+        return False
+
+def main():
+    parser = argparse.ArgumentParser(description="IndexTTS2 批量生成（音频 × 文本）")
+    parser.add_argument("--in_dir", type=str, default="/workspace/index-tts/in", help="输入目录（含 1.txt 与参考音频）")
+    parser.add_argument("--out_dir", type=str, default="/workspace/index-tts/out", help="输出目录")
+    parser.add_argument("--model_dir", type=str, default="/workspace/index-tts/checkpoints", help="模型目录（含 config.yaml 等）")
+    # 生成参数
+    parser.add_argument("--max_text_tokens_per_segment", type=int, default=120)
+    parser.add_argument("--do_sample", action="store_true", default=True)
+    parser.add_argument("--top_p", type=float, default=0.8)
+    parser.add_argument("--top_k", type=int, default=30)
+    parser.add_argument("--temperature", type=float, default=0.8)
+    parser.add_argument("--num_beams", type=int, default=3)
+    parser.add_argument("--repetition_penalty", type=float, default=10.0)
+    parser.add_argument("--max_mel_tokens", type=int, default=1500)
+    args = parser.parse_args()
+
+    in_dir = Path(args.in_dir).resolve()
+    out_dir = Path(args.out_dir).resolve()
+    model_dir = Path(args.model_dir).resolve()
+
+    if not in_dir.exists():
+        print(f"[ERROR] 输入目录不存在：{in_dir}"); sys.exit(1)
+    txt = in_dir / "1.txt"
+    if not txt.exists():
+        print(f"[ERROR] 缺少文本文件：{txt}"); sys.exit(1)
+    if not model_dir.exists():
+        print(f"[ERROR] 模型目录不存在：{model_dir}"); sys.exit(1)
+
+    prompts = find_prompt_audios(in_dir)
+    texts = read_lines(txt)
+    if not prompts:
+        print(f"[ERROR] {in_dir} 下未找到音频（支持 wav/mp3/flac/m4a/ogg）"); sys.exit(1)
+    if not texts:
+        print(f"[ERROR] {txt} 为空"); sys.exit(1)
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    use_fp16 = detect_fp16()
+    print(f"[INFO] Loading IndexTTS2 ... (fp16={use_fp16})")
+    tts = IndexTTS2(
+        cfg_path=str(model_dir / "config.yaml"),
+        model_dir=str(model_dir),
+        use_fp16=use_fp16,
+        use_cuda_kernel=False,
+        use_deepspeed=False,
+    )
+    print(f"[INFO] Model loaded. version={tts.model_version or '1.0'}")
+
+    total = len(prompts) * len(texts)
+    idx = 0
+    for pa in prompts:
+        base = safe_stem(pa)
+        for li, text in enumerate(texts, 1):
+            idx += 1
+            ts = int(time.time() * 1000)
+            out_path = out_dir / f"{base}__L{li:03d}__{ts}.wav"
+            print(f"[{idx}/{total}] {pa.name} × L{li} -&gt; {out_path.name}")
+            try:
+                tts.infer(
+                    spk_audio_prompt=str(pa),
+                    text=text,
+                    output_path=str(out_path),
+                    emo_audio_prompt=None,
+                    emo_alpha=0.65,
+                    emo_vector=None,
+                    use_emo_text=False,
+                    emo_text=None,
+                    use_random=False,
+                    verbose=False,
+                    max_text_tokens_per_segment=int(args.max_text_tokens_per_segment),
+                    do_sample=bool(args.do_sample),
+                    top_p=float(args.top_p),
+                    top_k=int(args.top_k) if int(args.top_k) &gt; 0 else None,
+                    temperature=float(args.temperature),
+                    length_penalty=0.0,
+                    num_beams=int(args.num_beams),
+                    repetition_penalty=float(args.repetition_penalty),
+                    max_mel_tokens=int(args.max_mel_tokens),
+                )
+            except Exception as e:
+                print(f"[ERROR] 生成失败：{e}")
+
+    print(f"[DONE] 共生成 {total} 条音频，输出目录：{out_dir}")
+
+if __name__ == "__main__":
+    main()
+</code></pre></div>
+<div style="font-size:small;margin-top:8px;float:right;">❤️ 转载文章请注明出处，谢谢！❤️</div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://feeday.cn">feeday</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行 "+diffDay+" 天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z', 'copy': 'M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z', 'check': 'M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.disabled=true;
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","tcq233/feeday");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const createClipboardHTML = (codeContent, additionalClasses = '') => `
+        <pre class="notranslate"><code class="notranslate">${codeContent}</code></pre>
+        <div class="clipboard-container position-absolute right-0 top-0 ${additionalClasses}">
+            <clipboard-copy class="ClipboardButton btn m-2 p-0" role="button" style="display: inherit;">
+                <svg height="16" width="16" class="octicon octicon-copy m-2"><path d="${IconList["copy"]}"></path></svg>
+                <svg height="16" width="16" class="octicon octicon-check color-fg-success m-2 d-none"><path d="${IconList["check"]}"></path></svg>
+            </clipboard-copy>
+            <div class="copy-feedback">Copied!</div>
+        </div>
+    `;
+
+    const handleCodeElements = (selector = '') => {
+        document.querySelectorAll(selector).forEach(codeElement => {
+            const codeContent = codeElement.innerHTML;
+            const newStructure = document.createElement('div');
+            newStructure.className = 'snippet-clipboard-content position-relative overflow-auto';
+            newStructure.innerHTML = createClipboardHTML(codeContent);
+
+            const parentElement = codeElement.parentElement;
+            if (selector.includes('highlight')) {
+                parentElement.insertBefore(newStructure, codeElement.nextSibling);
+                parentElement.removeChild(codeElement);
+            } else {
+                parentElement.parentElement.replaceChild(newStructure, parentElement);
+            }
+        });
+    };
+
+    handleCodeElements('pre.notranslate > code.notranslate');
+    handleCodeElements('div.highlight > pre.notranslate');
+
+    let currentFeedback = null;
+    document.querySelectorAll('clipboard-copy').forEach(copyButton => {
+        copyButton.addEventListener('click', () => {
+            const codeContent = copyButton.closest('.snippet-clipboard-content').innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeContent;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            const copyIcon = copyButton.querySelector('.octicon-copy');
+            const checkIcon = copyButton.querySelector('.octicon-check');
+            const copyFeedback = copyButton.nextElementSibling;
+
+            if (currentFeedback && currentFeedback !== copyFeedback) {currentFeedback.style.display = 'none';}
+            currentFeedback = copyFeedback;
+
+            copyIcon.classList.add('d-none');
+            checkIcon.classList.remove('d-none');
+            copyFeedback.style.display = 'block';
+            copyButton.style.borderColor = 'var(--color-success-fg)';
+
+            setTimeout(() => {
+                copyIcon.classList.remove('d-none');
+                checkIcon.classList.add('d-none');
+                copyFeedback.style.display = 'none';
+                copyButton.style.borderColor = '';
+            }, 2000);
+        });
+    });
+});
+
+</script>
+<script src='/gmeek/GmeekTOC.js'></script>
+
+</html>
